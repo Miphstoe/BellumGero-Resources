@@ -1,0 +1,22 @@
+[project]
+name = "bellum-gero-resources"
+version = "0.1.0"
+description = "Bellum Gero Resources database foundation"
+requires-python = ">=3.11"
+dependencies = [
+    "alembic>=1.13",
+    "psycopg[binary]>=3.2",
+    "sqlalchemy>=2.0",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.setuptools.packages.find]
+include = ["app*"]

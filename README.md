@@ -1,0 +1,58 @@
+# Bellum Gero Resources
+
+Design repository for the Bellum Gero resource, crafting, and creature data website.
+
+Current status: Phase 1 database foundation. The repository now contains PostgreSQL schema design, SQLAlchemy models, Alembic migrations, reference-data seeds, and database integration tests. No production database, importer, API, frontend, Core3 exporter, schematic indexer, creature indexer, or deployment scaffolding has been created yet.
+
+## Design Documents
+
+- [Architecture](docs/architecture.md)
+- [Data Sources](docs/data-sources.md)
+- [Database Schema](docs/database-schema.md)
+- [Import Plan](docs/import-plan.md)
+- [Database Implementation Notes](docs/database-implementation.md)
+
+## Phase 1 Database Setup
+
+Install dependencies:
+
+```powershell
+python -m pip install -e ".[test]"
+```
+
+Start PostgreSQL 16 for local development:
+
+```powershell
+docker compose up -d postgres
+docker compose exec postgres createdb -U bellum_resources bellum_resources_test
+```
+
+Configure environment:
+
+```powershell
+$env:BELLUM_DATABASE_URL = "postgresql+psycopg://bellum_resources:change_me@localhost:5432/bellum_resources"
+$env:TEST_DATABASE_URL = "postgresql+psycopg://bellum_resources:change_me@localhost:5432/bellum_resources_test"
+```
+
+Apply the schema:
+
+```powershell
+python -m alembic upgrade head
+```
+
+Normal Alembic commands use `BELLUM_DATABASE_URL`. The pytest fixture explicitly injects `TEST_DATABASE_URL`
+into Alembic's config so test downgrade/upgrade cycles cannot target the development database when both
+environment variables are set.
+
+Run database tests:
+
+```powershell
+python -m pytest
+```
+
+## Guardrails
+
+- `C:\Users\User\BellumGero-Live` is the authoritative Bellum Gero/Core3 reference and must not be modified by this project.
+- `/home/miphstoe/GalaxyHarvester-Research` is historical/reference material and must not be modified by this project.
+- Raw Galaxy Harvester XML archives must remain outside this Git repository.
+- Galaxy Harvester personal/account/contributor data is out of scope for the public Bellum Gero Resources database.
