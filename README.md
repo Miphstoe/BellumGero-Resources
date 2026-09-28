@@ -11,6 +11,8 @@ Current status: Phase 1 database foundation. The repository now contains Postgre
 - [Database Schema](docs/database-schema.md)
 - [Import Plan](docs/import-plan.md)
 - [Database Implementation Notes](docs/database-implementation.md)
+- [Core3 Resource-Type Indexer](docs/core3-resource-type-indexer.md)
+- [Core3 Entangle Resistance Investigation](docs/core3-entangle-resistance-investigation.md)
 
 ## Phase 1 Database Setup
 
