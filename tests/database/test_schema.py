@@ -225,3 +225,57 @@ def test_source_values_outside_conventional_stat_ranges_can_be_stored(db, ids):
     ).scalar_one()
     assert inserted > 0
 
+
+def test_core3_live_snapshot_ledger_rejects_same_capture_with_different_hash(engine, ids):
+    with engine.begin() as conn:
+        first_batch_id = create_import_batch(conn, ids["core3_instance"], "core3-ledger-a")
+        second_batch_id = create_import_batch(conn, ids["core3_instance"], "core3-ledger-b")
+        first_snapshot_id = conn.execute(
+            text(
+                """
+                INSERT INTO source_snapshots
+                    (import_batch_id, snapshot_kind, external_path, content_sha256, observed_at)
+                VALUES
+                    (:batch_id, 'core3_live_resource_snapshot', 'a.json', 'hash-a', '2026-09-29T12:00:00+00:00')
+                RETURNING id
+                """
+            ),
+            {"batch_id": first_batch_id},
+        ).scalar_one()
+        second_snapshot_id = conn.execute(
+            text(
+                """
+                INSERT INTO source_snapshots
+                    (import_batch_id, snapshot_kind, external_path, content_sha256, observed_at)
+                VALUES
+                    (:batch_id, 'core3_live_resource_snapshot', 'b.json', 'hash-b', '2026-09-29T12:00:00+00:00')
+                RETURNING id
+                """
+            ),
+            {"batch_id": second_batch_id},
+        ).scalar_one()
+        conn.execute(
+            text(
+                """
+                INSERT INTO core3_live_snapshot_imports
+                    (source_instance_id, source_snapshot_id, captured_at, content_sha256, complete, status)
+                VALUES
+                    (:source_instance_id, :snapshot_id, '2026-09-29T12:00:00+00:00', 'hash-a', true, 'complete')
+                """
+            ),
+            {"source_instance_id": ids["core3_instance"], "snapshot_id": first_snapshot_id},
+        )
+
+    with pytest.raises(IntegrityError):
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    """
+                    INSERT INTO core3_live_snapshot_imports
+                        (source_instance_id, source_snapshot_id, captured_at, content_sha256, complete, status)
+                    VALUES
+                        (:source_instance_id, :snapshot_id, '2026-09-29T12:00:00+00:00', 'hash-b', true, 'complete')
+                    """
+                ),
+                {"source_instance_id": ids["core3_instance"], "snapshot_id": second_snapshot_id},
+            )

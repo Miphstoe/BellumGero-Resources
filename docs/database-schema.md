@@ -178,6 +178,13 @@ Seed canonical codes:
 
 `ER` display name: `Entangle Resistance`. `core3_attribute_name` remains null unless a future Core3 equivalent is verified.
 
+Core3 live snapshots accept only `CR`, `CD`, `DR`, `FL`, `HR`, `MA`, `PE`,
+`OQ`, `SR`, and `UT`. `ER` is rejected for Core3 imports. The importer follows
+the established full-matrix observation convention: each Core3 resource snapshot
+creates one observation row for each of the ten supported Core3 stat
+definitions. Missing source values are stored as `is_present=false,
+value=null`; explicit zero values are stored as `is_present=true, value=0`.
+
 ## Resource Types
 
 ### `resource_types`
@@ -412,6 +419,58 @@ Columns:
 
 Do not collapse GH `entered`, GH `unavailable`, first exporter observation, last observation, Core3 created, and Core3 despawned into one misleading pair of columns.
 
+### `core3_live_snapshot_imports`
+
+Ledger of Core3 live snapshots accepted by the importer.
+
+Columns:
+
+- `id` PK
+- `source_instance_id` FK not null
+- `source_snapshot_id` FK not null unique
+- `captured_at` timestamptz not null
+- `content_sha256` text not null
+- `complete` boolean not null
+- `status` text not null
+- `advanced_current` boolean not null default false
+- `imported_at` timestamptz not null default now
+- `metadata` jsonb not null default `{}`
+- unique `(source_instance_id, captured_at)`
+- index `(source_instance_id, captured_at)`
+- index `(source_instance_id, advanced_current)`
+
+For a source instance and `captured_at`, the database permits only one ledger
+row. The same content hash is idempotent at the importer layer. A different
+hash is a snapshot conflict and must not mutate authoritative current state.
+`advanced_current=false` allows valid historical/out-of-order snapshots to be
+retained without moving current availability backward.
+
+### `current_resource_availability`
+
+Materialized authoritative current state for source resources.
+
+Columns:
+
+- `source_resource_id` FK primary key
+- `source_instance_id` FK not null
+- `is_active` boolean not null
+- `last_seen_source_snapshot_id` FK nullable
+- `last_seen_at` timestamptz nullable
+- `current_source_snapshot_id` FK not null
+- `current_as_of` timestamptz not null
+- `absent_source_snapshot_id` FK nullable
+- `absent_as_of` timestamptz nullable
+- `updated_at` timestamptz not null default now
+- `details` jsonb not null default `{}`
+- index `(source_instance_id, is_active)`
+- index `(current_source_snapshot_id)`
+
+Rows are keyed by database `source_resource_id`, not a bare Core3 OID. When a
+newer complete Core3 snapshot advances current state, present resources become
+active and previously active resources from the same source instance that are
+absent become inactive as of that snapshot. Absence does not fabricate an exact
+despawn event.
+
 ## Unresolved Source Records
 
 ### `unresolved_source_resources`
@@ -547,4 +606,3 @@ Constraints should prevent:
 - confirmed linking of one source resource to multiple canonical resources
 
 Names should be indexed, not globally unique.
-

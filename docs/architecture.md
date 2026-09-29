@@ -88,6 +88,26 @@ Importer design goals:
 - Record observation rows rather than mutating history in place.
 - Materialize current availability for fast reads.
 
+Phase 4B implements the first Core3 live snapshot importer. It accepts only
+schema version 1 snapshots with `source_system = core3`,
+`source_instance = bellum-gero-live`, and `complete = true`. The Core3 OID is
+stored exactly as the source identity in `source_resources.source_resource_id`;
+generated names are evidence only and are never used to merge Core3 resources
+with Galaxy Harvester rows.
+
+Accepted snapshots are recorded in `core3_live_snapshot_imports`. For a source
+instance and `captured_at`, the same content hash is idempotent and a different
+hash is a conflict. Only snapshots newer than the latest accepted current
+snapshot advance `current_resource_availability`; older valid snapshots can be
+kept as historical evidence without moving the authoritative current watermark
+backward.
+
+Disappearance is conservative. If an OID is present in one complete snapshot
+and absent from a later accepted complete snapshot, the resource is inactive as
+of the later snapshot, but that does not prove an exact Core3 despawn time.
+Explicit `spawned_at` and expiration deadlines are preserved when present;
+missing lifecycle timestamps are not fabricated.
+
 ## Public API Shape Later
 
 Start read-only:
@@ -111,4 +131,3 @@ Keep write/admin/import endpoints private.
 - Source values are preserved even when anomalous.
 - GH/Core3 source identities are not interchangeable.
 - No automatic GH/Core3 merge by name alone.
-

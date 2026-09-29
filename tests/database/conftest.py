@@ -37,8 +37,12 @@ def engine(database_url: str, alembic_config: Config):
 
 @pytest.fixture()
 def db(engine):
-    with engine.begin() as conn:
-        yield conn
+    with engine.connect() as conn:
+        transaction = conn.begin()
+        try:
+            yield conn
+        finally:
+            transaction.rollback()
 
 
 @pytest.fixture()

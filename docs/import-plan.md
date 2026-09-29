@@ -118,6 +118,30 @@ Exporter should produce a snapshot like:
 
 Important exporter rule: include only attributes present in `spawnAttributes`, not `getValueOf()` results for every possible stat. That is how the website preserves missing versus explicit zero.
 
+## Phase 4B Core3 Live Importer
+
+The Phase 4B importer ingests the Phase 4A `resource-snapshot.json` handoff for
+`source_system=core3` and `source_instance=bellum-gero-live`. It accepts only
+schema version 1 complete snapshots for authoritative current-state
+reconciliation.
+
+Importer behavior:
+
+- validate the full snapshot before authoritative reconciliation
+- store Core3 OIDs exactly as `source_resources.source_resource_id`
+- resolve raw type slugs through the Phase 2 Core3 resource type index
+- resolve planet values through canonical planet `core3_zone_name`/slug values
+- write append-only provenance, source records, stat observations, planet observations, resource observations, and lifecycle facts
+- write one stat observation row for each of the ten supported Core3 stats per resource, preserving missing versus explicit zero
+- reject ER and any unknown stat, unknown planet, unknown type, malformed OID, or conflicting duplicate OID
+- record accepted snapshots in `core3_live_snapshot_imports`
+- advance `current_resource_availability` only when the snapshot is newer than the latest accepted current snapshot
+
+Disappearance from a later complete snapshot means inactive as of that snapshot.
+It does not prove an exact despawn timestamp, and the importer must not
+fabricate one. Galaxy Harvester rows remain historical evidence in their own
+source instance; same-name GH/Core3 resources are not automatically merged.
+
 ## Migration Path
 
 Safe path:
@@ -142,4 +166,3 @@ Do not block the first website version on perfect reconciliation.
 - Determine whether Core3 has any hidden/non-resource use of Entangle Resistance before deciding ER is forever GH-only.
 - Decide public URL identity shape: UUID, slug with disambiguator, or source-qualified IDs for historical pages.
 - Confirm whether resource type canonicalization should start from Core3 `resource_tree.iff` only, then map GH types, or seed with GH then overlay Core3. Recommendation: Core3 first.
-

@@ -391,6 +391,46 @@ class ResourceLifecycleEvent(Base):
     details: Mapped[dict[str, Any]] = jsonb_default()
 
 
+class Core3LiveSnapshotImport(Base):
+    __tablename__ = "core3_live_snapshot_imports"
+    __table_args__ = (
+        UniqueConstraint("source_instance_id", "captured_at", name="uq_core3_live_snapshot_imports_instance_capture"),
+        Index("ix_core3_live_snapshot_imports_instance_capture", "source_instance_id", "captured_at"),
+        Index("ix_core3_live_snapshot_imports_instance_advanced", "source_instance_id", "advanced_current"),
+    )
+
+    id: Mapped[int] = bigint_pk()
+    source_instance_id: Mapped[int] = mapped_column(ForeignKey("source_instances.id"), nullable=False)
+    source_snapshot_id: Mapped[int] = mapped_column(ForeignKey("source_snapshots.id"), nullable=False, unique=True)
+    captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    content_sha256: Mapped[str] = mapped_column(Text, nullable=False)
+    complete: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    status: Mapped[str] = mapped_column(Text, nullable=False)
+    advanced_current: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    imported_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+    metadata_: Mapped[dict[str, Any]] = mapped_column("metadata", JSONB, nullable=False, server_default=text("'{}'::jsonb"))
+
+
+class CurrentResourceAvailability(Base):
+    __tablename__ = "current_resource_availability"
+    __table_args__ = (
+        Index("ix_current_resource_availability_instance_active", "source_instance_id", "is_active"),
+        Index("ix_current_resource_availability_current_snapshot", "current_source_snapshot_id"),
+    )
+
+    source_resource_id: Mapped[int] = mapped_column(ForeignKey("source_resources.id"), primary_key=True)
+    source_instance_id: Mapped[int] = mapped_column(ForeignKey("source_instances.id"), nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    last_seen_source_snapshot_id: Mapped[int | None] = mapped_column(ForeignKey("source_snapshots.id"))
+    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    current_source_snapshot_id: Mapped[int] = mapped_column(ForeignKey("source_snapshots.id"), nullable=False)
+    current_as_of: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    absent_source_snapshot_id: Mapped[int | None] = mapped_column(ForeignKey("source_snapshots.id"))
+    absent_as_of: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+    details: Mapped[dict[str, Any]] = jsonb_default()
+
+
 class UnresolvedSourceResource(Base):
     __tablename__ = "unresolved_source_resources"
     __table_args__ = (
