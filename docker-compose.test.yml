@@ -1,0 +1,16 @@
+services:
+  postgres-test:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: bellum_test
+      POSTGRES_PASSWORD: isolated_local_test
+      POSTGRES_DB: bellum_resources_test
+    ports:
+      - "127.0.0.1:55435:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bellum_test -d bellum_resources_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
