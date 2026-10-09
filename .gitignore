@@ -1,4 +1,11 @@
 .env
+.env.*
+!.env.example
+!.env.production.example
+secrets/
+backups/
+*.dump
+*.backup
 .venv/
 __pycache__/
 *.py[cod]
@@ -12,3 +19,4 @@ htmlcov/
 .phase5a-design-brief.md
 .phase5a-design-evaluation.md
 .phase5a-output/
+.phase6b-output/

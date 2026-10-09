@@ -1,0 +1,63 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: bellum-gero-resources:${BELLUM_IMAGE_TAG:-local}
+    env_file:
+      - ${BELLUM_ENV_FILE:-.env.production}
+    environment:
+      BELLUM_DATABASE_URL: ${BELLUM_DATABASE_URL:?Set BELLUM_DATABASE_URL in the external environment file}
+      BELLUM_ADMIN_USERNAME: ${BELLUM_ADMIN_USERNAME:?Set the admin username}
+      BELLUM_ADMIN_PASSWORD: ${BELLUM_ADMIN_PASSWORD:?Set the admin password}
+      BELLUM_UPLOAD_API_TOKEN: ${BELLUM_UPLOAD_API_TOKEN:?Set the upload token}
+      BELLUM_CSRF_SECRET: ${BELLUM_CSRF_SECRET:?Set a CSRF secret of at least 32 characters}
+      BELLUM_SECURE_COOKIES: "true"
+      # Trust only the measured TCP peer of the host Nginx -> loopback port path.
+      FORWARDED_ALLOW_IPS: ${BELLUM_FORWARDED_ALLOW_IPS:?Set exact trusted proxy peer IPs; see the deployment runbook}
+    ports:
+      - "127.0.0.1:${BELLUM_HOST_PORT:-18080}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 30s
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3).close()"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+    networks:
+      - frontend
+      - backend
+  postgres:
+    image: postgres:16-bookworm
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks:
+      - backend
+volumes:
+  postgres-data:
+networks:
+  frontend:
+  backend:
+    internal: true
