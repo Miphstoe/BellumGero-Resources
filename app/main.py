@@ -20,6 +20,7 @@ from app.web import queries
 from app.web.ingestion import UploadRejected, ingest, record_attempt
 from app.web.security import authenticate, check_csrf, issue_csrf
 from app.web.settings import WebSettings
+from app.importing.core3_live.exporter_adapter import CountSafetyPolicy
 
 logger = logging.getLogger(__name__)
 WEB_ROOT = Path(__file__).parent / "web"
@@ -234,7 +235,7 @@ def create_app(*, engine=None, settings=None):
         browser = request.url.path.startswith("/admin")
         auth_kind = authenticate(request, browser_only=browser)
         try:
-            async with request.form(max_files=1, max_fields=3, max_part_size=65536) as form:
+            async with request.form(max_files=1, max_fields=5, max_part_size=65536) as form:
                 if auth_kind == "basic":
                     check_csrf(request, str(form.get("csrf_token", "")))
                 mode = str(form.get("mode", "validate"))
@@ -249,7 +250,10 @@ def create_app(*, engine=None, settings=None):
                     if mode == "import":
                         await run_in_threadpool(record_attempt, application.state.engine, "failed", error.result())
                     raise error
-                result = await run_in_threadpool(ingest, application.state.engine, content, dry_run=mode == "validate")
+                result = await run_in_threadpool(ingest, application.state.engine, content, dry_run=mode == "validate",
+                    count_policy=CountSafetyPolicy(settings.native_max_reduction_fraction, settings.native_sustained_max_reduction_fraction),
+                    allow_review_override=settings.native_review_overrides,
+                    review_sha256=str(form.get("review_sha256", "")), review_reason=str(form.get("review_reason", "")))
         except UploadRejected as exc:
             if browser:
                 return await run_in_threadpool(admin_response, request, exc.result(), exc.status)
