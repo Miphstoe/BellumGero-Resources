@@ -7,6 +7,7 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, text
+from sqlalchemy.engine import make_url
 
 
 @pytest.fixture(scope="session")
@@ -14,6 +15,14 @@ def database_url() -> str:
     url = os.environ.get("TEST_DATABASE_URL")
     if not url:
         pytest.fail("TEST_DATABASE_URL is required for database integration tests")
+    parsed = make_url(url)
+    if parsed.host not in {"localhost", "127.0.0.1", "::1"} or not (parsed.database or "").endswith("_test"):
+        pytest.fail("Tests require a loopback PostgreSQL database whose name ends in _test")
+    development = os.environ.get("BELLUM_DATABASE_URL")
+    if development:
+        other = make_url(development)
+        if (parsed.host, parsed.port, parsed.database) == (other.host, other.port, other.database):
+            pytest.fail("TEST_DATABASE_URL must not target BELLUM_DATABASE_URL")
     return url
 
 

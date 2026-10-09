@@ -9,3 +9,6 @@ __pycache__/
 .coverage
 htmlcov/
 .phase2-output/
+.phase5a-design-brief.md
+.phase5a-design-evaluation.md
+.phase5a-output/

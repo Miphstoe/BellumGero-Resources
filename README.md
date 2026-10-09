@@ -1,5 +1,20 @@
 # Bellum Gero Resources
 
+Phase 5A adds a FastAPI/Jinja website, read-only resource APIs, and protected
+snapshot uploads using the existing Phase 4B importer. See
+[Phase 5A setup, API, security and deployment guide](docs/phase-5a.md) and
+[integration inspection](docs/phase-5a-integration.md).
+
+```powershell
+python -m pip install -e '.[test]'
+# Set BELLUM_DATABASE_URL and the administrator environment variables first.
+python -m alembic upgrade head
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+```
+
+The frontend is served by FastAPI; no separate frontend process or Node build
+is required. Work remains local on `phase-5a-website-foundation` for review.
+
 Design repository for the Bellum Gero resource, crafting, and creature data website.
 
 Current status: Phase 1 database foundation. The repository now contains PostgreSQL schema design, SQLAlchemy models, Alembic migrations, reference-data seeds, and database integration tests. No production database, importer, API, frontend, Core3 exporter, schematic indexer, creature indexer, or deployment scaffolding has been created yet.
