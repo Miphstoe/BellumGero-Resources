@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import hashlib
+from xml.etree import ElementTree as ET
 import os
 from pathlib import Path
 
@@ -95,6 +97,25 @@ def make_archive(root: Path, resources: dict[str, dict], unresolved: list[dict] 
     checksums = []
     for sid, payload in sorted(resources.items(), key=lambda item: int(item[0])):
         exact = payload["exact"]
+        xml = ET.Element("result")
+        for key, tag in (("name", "spawnName"), ("spawn_id", "spawnID"), ("resource_type", "resourceType"),
+                         ("resource_type_name", "resourceTypeName"), ("container_type", "containerType"),
+                         ("entered", "entered"), ("unavailable", "unavailable")):
+            ET.SubElement(xml, tag).text = str(exact[key]) if exact.get(key) is not None else "None"
+        for code, value in exact["stats"].items():
+            ET.SubElement(xml, code).text = str(value)
+        for code, bounds in exact["stat_ranges"].items():
+            for bound in ("min", "max"):
+                ET.SubElement(xml, code + bound).text = str(bounds.get(bound))
+        for planet in exact["planets"]:
+            attributes = {"id": str(planet["id"])}
+            attributes.update({key: str(planet[key]) for key in ("entered", "unavailable") if planet.get(key) is not None})
+            ET.SubElement(xml, "planet", attributes).text = planet["name"]
+        ET.SubElement(xml, "resultText").text = "found"
+        raw_path = root / payload["exact_source_path"]
+        raw_path.parent.mkdir(parents=True, exist_ok=True)
+        raw_path.write_bytes(ET.tostring(xml))
+        digest = hashlib.sha256(raw_path.read_bytes()).hexdigest()
         identities.append(
             {
                 "galaxy_id": 153,
@@ -104,16 +125,31 @@ def make_archive(root: Path, resources: dict[str, dict], unresolved: list[dict] 
                 "resource_type_name": exact["resource_type_name"],
                 "entered": exact.get("entered"),
                 "unavailable": exact.get("unavailable"),
-                "raw_source_file": f"raw/http/get-resources-spawnid-pages/test/page.json",
-                "raw_source_sha256": f"sha-{sid}",
+                "raw_source_file": payload["exact_source_path"],
+                "raw_source_sha256": digest,
             }
         )
         names[exact["name"]] = [int(sid)]
         source_types[exact["resource_type"]] = {"resource_type": exact["resource_type"], "resource_type_name": exact["resource_type_name"]}
-        checksums.append(f"sha-{sid}  {payload['exact_source_path']}\n")
+        checksums.append(f"{digest}  {payload['exact_source_path']}\n")
+    unresolved = unresolved or []
+    for item in unresolved:
+        item["source_path"] = "raw/errors/" + Path(item["source_path"]).name
+        raw_path = root / item["source_path"]
+        raw_path.parent.mkdir(parents=True, exist_ok=True)
+        xml = ET.Element("result")
+        ET.SubElement(xml, "spawnName").text = item["name"]
+        ET.SubElement(xml, "resultText").text = item["result_text"]
+        raw_path.write_bytes(ET.tostring(xml))
+        item["raw_source_sha256"] = hashlib.sha256(raw_path.read_bytes()).hexdigest()
+        checksums.append(f"{item['raw_source_sha256']}  {item['source_path']}\n")
     frozen = {
         "galaxy_id": 153,
         "identities": identities,
+        "discovered_names": sorted(list(names) + [item["name"] for item in unresolved]),
+        "discovered_name_count": len(names) + len(unresolved),
+        "unresolved_names": sorted(item["name"] for item in unresolved),
+        "discovery_source_paths": ["raw/names/names-test.json"],
         "unique_spawn_id_count": len(identities),
         "unique_name_count": len(identities),
         "duplicate_spawn_id_count": 0,
@@ -122,8 +158,8 @@ def make_archive(root: Path, resources: dict[str, dict], unresolved: list[dict] 
         "names_mapping_to_multiple_spawn_ids": {},
         "no_unresolved_identity_conflicts": True,
         "source_count_reconciles": True,
-        "source_total_results_start": len(identities),
-        "source_total_results_end": len(identities),
+        "source_total_results_start": len(identities) + len(unresolved),
+        "source_total_results_end": len(identities) + len(unresolved),
     }
     write_json(root / "normalized" / "frozen-identities.json", frozen)
     write_json(root / "normalized" / "resources-index.json", {"resources": resources})
@@ -131,6 +167,9 @@ def make_archive(root: Path, resources: dict[str, dict], unresolved: list[dict] 
     write_json(root / "normalized" / "planets.json", {"planets": planets})
     write_json(root / "normalized" / "source-types.json", {"source_types": source_types})
     write_json(root / "normalized" / "unresolved.json", {"unresolved": unresolved or []})
+    write_json(root / "raw/names/names-test.json", {"galaxy_id": 153, "names": frozen["discovered_names"]})
+    for path in sorted((root / "normalized").glob("*.json")) + [root / "raw/names/names-test.json"]:
+        checksums.append(f"{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.relative_to(root).as_posix()}\n")
     (root / "checksums").mkdir(parents=True, exist_ok=True)
     (root / "checksums" / "sha256sums.txt").write_text("".join(checksums), encoding="utf-8")
     if extra_raw:
@@ -257,9 +296,9 @@ def test_dweina_unresolved_does_not_create_resource_in_reader(tmp_path):
     assert archive.unresolved[0]["name"] == "dweina"
 
 
-def test_import_population_ignores_extra_raw_xml(tmp_path):
-    archive = read_archive(make_archive(tmp_path, {"1": resource_payload()}, extra_raw=True))
-    assert len(archive.resources) == 1
+def test_import_rejects_extra_raw_xml(tmp_path):
+    with pytest.raises(ValueError, match="unexpected or missing source records"):
+        read_archive(make_archive(tmp_path, {"1": resource_payload()}, extra_raw=True))
 
 
 def test_malformed_conflicting_source_identity_blocks(tmp_path):

@@ -76,4 +76,5 @@ python -m pytest
 - `C:\Users\User\BellumGero-Live` is the authoritative Bellum Gero/Core3 reference and must not be modified by this project.
 - `/home/miphstoe/GalaxyHarvester-Research` is historical/reference material and must not be modified by this project.
 - Raw Galaxy Harvester XML archives must remain outside this Git repository.
+- [Offline historical archive conversion and import validation](docs/galaxy-harvester-archive.md) documents the converter, integrity policy, and safe local verification commands.
 - Galaxy Harvester personal/account/contributor data is out of scope for the public Bellum Gero Resources database.

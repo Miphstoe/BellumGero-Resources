@@ -17,13 +17,14 @@ from app.importing.galaxy_harvester.archive import (
     ArchiveData,
     HistoricalResource,
     normalize_name,
+    parse_source_datetime,
     read_archive,
 )
 from app.importing.galaxy_harvester.reconcile import PlanetReconciliation, TypeReconciliation, reconcile_planets, reconcile_types
 
 
 IMPORT_KIND = "galaxy_harvester_historical_archive"
-TOOL_VERSION = "phase3d-gh-importer-v1"
+TOOL_VERSION = "gh-archive-importer-v2"
 
 
 @dataclass(frozen=True)
@@ -176,8 +177,6 @@ def dry_run(connection, archive_root: Path) -> dict[str, Any]:
     expected = plan_expected_mutations(connection, archive, type_rec, planet_rec, anomalies)
     counts = archive_counts(archive)
     malformed: list[str] = []
-    if counts.frozen_identities != 18627:
-        malformed.append("unexpected frozen identity count")
     if counts.normalized_resources != counts.frozen_identities:
         malformed.append("normalized resources do not match frozen identities")
     if planet_rec.unresolved_planets:
@@ -185,6 +184,9 @@ def dry_run(connection, archive_root: Path) -> dict[str, Any]:
     return {
         "dry_run": True,
         "archive": counts.__dict__,
+        "archive_revision": archive.revision,
+        "discovered_names": archive.frozen_manifest["discovered_name_count"],
+        "source_checksums_verified": len(archive.checksums),
         "source_identity": {
             "source_system": "galaxy_harvester",
             "source_instance": SOURCE_INSTANCE,
@@ -205,7 +207,7 @@ def dry_run(connection, archive_root: Path) -> dict[str, Any]:
     }
 
 
-def upsert_import_batch(connection, source_instance_id: int, archive_root: Path) -> int:
+def upsert_import_batch(connection, source_instance_id: int, archive: ArchiveData) -> int:
     row = connection.execute(
         text(
             """
@@ -217,10 +219,39 @@ def upsert_import_batch(connection, source_instance_id: int, archive_root: Path)
             LIMIT 1
             """
         ),
-        {"source_instance_id": source_instance_id, "kind": IMPORT_KIND, "source_revision": str(archive_root)},
+        {"source_instance_id": source_instance_id, "kind": IMPORT_KIND, "source_revision": archive.revision},
     ).first()
     if row:
         return row[0]
+    # Upgrade a path-identified legacy batch only when its complete resource and
+    # unresolved evidence hashes prove it represents exactly this archive.
+    expected = {("gh_resource_exact", str(r.spawn_id), archive.checksums[r.exact_source_path]) for r in archive.resources}
+    expected |= {("gh_unresolved_exact", item["name"], archive.checksums[item["source_path"]]) for item in archive.unresolved}
+    legacy_batches = connection.execute(text("""
+        SELECT b.id, b.source_revision FROM import_batches b
+        WHERE b.source_instance_id = :instance AND b.import_kind = :kind
+          AND NOT EXISTS (SELECT 1 FROM source_snapshots s WHERE s.import_batch_id = b.id)
+        ORDER BY b.id
+    """), {"instance": source_instance_id, "kind": IMPORT_KIND}).all()
+    for legacy_id, legacy_revision in legacy_batches:
+        evidence = {tuple(item) for item in connection.execute(text("""
+            SELECT DISTINCT s.record_type, s.source_key, s.payload_hash FROM source_records s
+            JOIN resource_stat_observations o ON o.source_record_id = s.id
+            WHERE o.import_batch_id = :batch
+            UNION
+            SELECT s.record_type, s.source_key, s.payload_hash FROM source_records s
+            JOIN unresolved_source_resources u ON u.source_record_id = s.id
+            WHERE u.import_batch_id = :batch
+        """), {"batch": legacy_id})}
+        if evidence == expected:
+            connection.execute(text("""
+                UPDATE import_batches SET source_revision = :revision,
+                    parameters = parameters || CAST(:parameters AS jsonb)
+                WHERE id = :batch
+            """), {"revision": archive.revision, "batch": legacy_id,
+                   "parameters": json.dumps({"legacy_source_revision": legacy_revision,
+                       "archive_revision": archive.revision, "archive_root": str(archive.root)})})
+            return legacy_id
     return connection.execute(
         text(
             """
@@ -235,26 +266,49 @@ def upsert_import_batch(connection, source_instance_id: int, archive_root: Path)
             "source_instance_id": source_instance_id,
             "kind": IMPORT_KIND,
             "tool_version": TOOL_VERSION,
-            "source_revision": str(archive_root),
-            "parameters": json.dumps({"archive_root": str(archive_root)}, sort_keys=True),
+            "source_revision": archive.revision,
+            "parameters": json.dumps({"archive_root": str(archive.root), "archive_revision": archive.revision}, sort_keys=True),
         },
     ).scalar_one()
 
 
 def import_archive(connection, archive_root: Path) -> dict[str, Any]:
+    # All filesystem validation happens before database writes. A savepoint also
+    # protects callers who catch failures and subsequently commit their transaction.
     archive = read_archive(archive_root)
+    with connection.begin_nested():
+        return _import_validated_archive(connection, archive)
+
+
+def _import_validated_archive(connection, archive: ArchiveData) -> dict[str, Any]:
     source_instance_id = get_source_instance_id(connection)
-    batch_id = upsert_import_batch(connection, source_instance_id, archive_root)
+    connection.execute(text("SELECT pg_advisory_xact_lock(153, :instance)"), {"instance": source_instance_id})
     type_rec = reconcile_types(connection, archive.source_types, source_instance_id)
     planet_rec = reconcile_planets(connection, archive.planets)
     if planet_rec.unresolved_planets:
         raise ValueError(f"Cannot import with unresolved planets: {planet_rec.unresolved_planets}")
 
+    batch_id = upsert_import_batch(connection, source_instance_id, archive)
+    snapshot_id = connection.execute(text("""
+        INSERT INTO source_snapshots
+            (import_batch_id, snapshot_kind, external_path, content_sha256, byte_size, record_count, metadata)
+        VALUES (:batch, :kind, 'normalized/frozen-identities.json', :revision, :size, :count, CAST(:metadata AS jsonb))
+        ON CONFLICT (import_batch_id, external_path, content_sha256) DO UPDATE
+            SET content_sha256 = EXCLUDED.content_sha256
+        RETURNING id
+    """), {"batch": batch_id, "kind": IMPORT_KIND, "revision": archive.checksums["normalized/frozen-identities.json"],
+           "size": (archive.root / "normalized/frozen-identities.json").stat().st_size,
+           "count": len(archive.resources), "metadata": json.dumps({"source_galaxy_id": SOURCE_GALAXY_ID,
+               "archive_revision": archive.revision,
+               "source_instance": SOURCE_INSTANCE, "verified_checksums": archive.checksums,
+               "discovered_names": archive.frozen_manifest["discovered_name_count"],
+               "unresolved_names": len(archive.unresolved)})}).scalar_one()
+
     inserted = Counter()
     source_type_ids = upsert_source_types(connection, archive, source_instance_id, type_rec, inserted)
     source_planet_ids = upsert_source_planets(connection, archive, source_instance_id, planet_rec, inserted)
     for resource in archive.resources:
-        source_record_id = upsert_source_record(connection, None, "gh_resource_exact", str(resource.spawn_id), resource.exact_source_path, archive.checksums.get(resource.exact_source_path), resource.payload, inserted)
+        source_record_id = upsert_source_record(connection, snapshot_id, "gh_resource_exact", str(resource.spawn_id), resource.exact_source_path, archive.checksums[resource.exact_source_path], resource.payload, inserted)
         source_type_id = source_type_ids.get(resource.resource_type)
         canonical_type_id = type_rec.mapping_by_source_type.get(resource.resource_type)
         canonical_resource_id = upsert_canonical_resource(connection, resource, canonical_type_id, inserted)
@@ -267,17 +321,17 @@ def import_archive(connection, archive_root: Path) -> dict[str, Any]:
         upsert_lifecycle(connection, source_resource_id, batch_id, resource, source_record_id, inserted)
     anomalies = find_anomalies(archive.resources)
     source_resource_rows = {
-        row[0]: {"id": row[1], "first_source_record_id": row[2]}
+        row[0]: {"id": row[1], "last_source_record_id": row[2]}
         for row in connection.execute(
-            text("SELECT source_resource_id, id, first_source_record_id FROM source_resources WHERE source_instance_id = :id"),
+            text("SELECT source_resource_id, id, last_source_record_id FROM source_resources WHERE source_instance_id = :id"),
             {"id": source_instance_id},
         ).all()
     }
     for anomaly in anomalies:
         source_row = source_resource_rows[str(anomaly["spawn_id"])]
-        upsert_anomaly(connection, source_row["first_source_record_id"], source_row["id"], anomaly, inserted)
+        upsert_anomaly(connection, source_row["last_source_record_id"], source_row["id"], anomaly, inserted)
     for unresolved in archive.unresolved:
-        source_record_id = upsert_source_record(connection, None, "gh_unresolved_exact", unresolved["name"], f"raw/http/get-resource-by-name/{unresolved['source_path']}", archive.checksums.get(f"raw/http/get-resource-by-name/{unresolved['source_path']}"), unresolved, inserted)
+        source_record_id = upsert_source_record(connection, snapshot_id, "gh_unresolved_exact", unresolved["name"], unresolved["source_path"], archive.checksums[unresolved["source_path"]], unresolved, inserted)
         upsert_unresolved(connection, source_instance_id, batch_id, unresolved, source_record_id, inserted)
     connection.execute(
         text("UPDATE import_batches SET status = 'complete', summary = CAST(:summary AS jsonb), finished_at = now() WHERE id = :id"),
@@ -342,6 +396,15 @@ def upsert_source_planets(connection, archive: ArchiveData, source_instance_id: 
 
 
 def upsert_source_record(connection, snapshot_id, record_type: str, key: str, payload_ref: str | None, payload_hash: str | None, payload: dict[str, Any], inserted: Counter) -> int:
+    # Attach an unchanged legacy NULL-snapshot record without duplicating its
+    # observations. Never rewrite a legacy record with different source evidence.
+    connection.execute(text("""
+        UPDATE source_records SET source_snapshot_id = :snapshot
+        WHERE source_snapshot_id IS NULL AND record_type = :kind AND source_key = :key
+          AND payload_hash = :hash
+          AND NOT EXISTS (SELECT 1 FROM source_records WHERE source_snapshot_id = :snapshot
+                          AND record_type = :kind AND source_key = :key)
+    """), {"snapshot": snapshot_id, "kind": record_type, "key": key, "hash": payload_hash})
     row = connection.execute(
         text(
             """
@@ -562,8 +625,8 @@ def upsert_planets(connection, source_resource_id: int, batch_id: int, resource:
                 "planet_id": planet_rec.mapping_by_source_planet_id[source_planet_id],
                 "source_planet_id": source_planet_ids[source_planet_id],
                 "observed_at": resource.entered,
-                "entered": resource.entered,
-                "unavailable": None,
+                "entered": parse_source_datetime(planet.get("entered")),
+                "unavailable": parse_source_datetime(planet.get("unavailable")),
                 "source_record_id": source_record_id,
                 "batch_id": batch_id,
             },
@@ -636,7 +699,7 @@ def upsert_unresolved(connection, source_instance_id: int, batch_id: int, unreso
             INSERT INTO unresolved_source_resources
                 (source_instance_id, import_batch_id, source_name, normalized_name, result_status, http_status, source_result_text, source_record_id, details)
             VALUES
-                (:source_instance_id, :batch_id, :name, :normalized_name, 'unresolved_new_result', 200, :result_text, :source_record_id, CAST(:details AS jsonb))
+                (:source_instance_id, :batch_id, :name, :normalized_name, 'unresolved_new_result', :http_status, :result_text, :source_record_id, CAST(:details AS jsonb))
             ON CONFLICT (source_instance_id, normalized_name, import_batch_id) DO NOTHING
             RETURNING id
             """
@@ -645,6 +708,7 @@ def upsert_unresolved(connection, source_instance_id: int, batch_id: int, unreso
             "source_instance_id": source_instance_id,
             "batch_id": batch_id,
             "name": unresolved["name"],
+            "http_status": unresolved.get("http_status"),
             "normalized_name": normalize_name(unresolved["name"]),
             "result_text": unresolved.get("result_text"),
             "source_record_id": source_record_id,
@@ -663,6 +727,7 @@ def main(argv: list[str] | None = None) -> int:
 
     with make_engine().begin() as connection:
         if args.dry_run:
+            connection.exec_driver_sql("SET TRANSACTION READ ONLY")
             result = dry_run(connection, args.archive)
         else:
             result = import_archive(connection, args.archive)
