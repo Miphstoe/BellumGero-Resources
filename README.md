@@ -5,6 +5,10 @@ snapshot uploads using the existing Phase 4B importer. See
 [Phase 5A setup, API, security and deployment guide](docs/phase-5a.md) and
 [integration inspection](docs/phase-5a-integration.md).
 
+Native Core3 schema-v1 exports are supported through a strict compatibility
+adapter with count-reduction review safeguards. See the
+[adapter contract, validation, review and relay guide](docs/core3-snapshot-adapter.md).
+
 ```powershell
 python -m pip install -e '.[test]'
 # Set BELLUM_DATABASE_URL and the administrator environment variables first.
