@@ -9,6 +9,41 @@ from tests.importing.test_creature_catalog import source_tree, add_candidate
 from tests.database.conftest import create_resource_type
 
 
+def test_presentation_preserves_api_filters_and_source_evidence(directory, web_engine):
+    client, ids = directory
+    creature_id = ids['wild_foreign_bantha_rori']
+    with web_engine.begin() as connection:
+        connection.execute(text("UPDATE creature_names SET value='' WHERE kind='customName'"))
+        connection.execute(text("UPDATE creature_spawn_nodes SET details=jsonb_set(details,'{name}',to_jsonb(CAST(:name AS text))) WHERE kind='region'"),
+                           {'name':'@tatooine_region_names:western_dune_sea_1'})
+    paths = ['/api/creatures', f'/api/creatures/{creature_id}',
+             f'/api/creatures/{creature_id}/spawn-evidence',
+             f'/api/creatures/{creature_id}/resources?planet=rori']
+    baseline = {path:client.get(path).json() for path in paths}
+    html = client.get(f'/creatures/{creature_id}').text
+    assert 'Wild Foreign Bantha Rori' in html
+    assert 'Western Dune Sea 1' in html
+    assert '<summary>Technical details</summary>' in html
+    assert '<summary>Core3 source information</summary>' in html
+    assert '@tatooine_region_names:western_dune_sea_1' in html
+    assert baseline[paths[1]]['revision'] in html
+    assert baseline[paths[1]]['provenance']['source_file'] in html
+    assert 'not exact creature coordinates' in html
+    for query in ('name=wild_foreign_bantha_rori', 'planet=rori', 'category=meat',
+                  'min_level=20&max_level=20', 'resource_class=hide_wooly_rori'):
+        assert client.get('/creatures?'+query).status_code == 200
+    for path, expected in baseline.items():
+        assert client.get(path).json() == expected
+
+
+def test_readable_labels_preserve_class_filter_values(directory):
+    client, _ = directory
+    response = client.get('/creatures?resource_class=hide_wooly_rori')
+    assert response.status_code == 200
+    assert 'Hide Wooly Rori' in response.text  # Existing taxonomy is preferred.
+    assert 'value="hide_wooly_rori" selected' in response.text
+
+
 @pytest.fixture
 def directory(client, web_engine, source_tree):
     root, put = source_tree

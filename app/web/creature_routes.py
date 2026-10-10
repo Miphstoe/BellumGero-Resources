@@ -4,6 +4,7 @@ from urllib.parse import urlencode
 from fastapi import Path, Request
 
 from app.web import creatures, queries
+from app.web.creature_presentation import presentation
 
 
 def register_creature_routes(application, render, status):
@@ -55,6 +56,7 @@ def register_creature_routes(application, render, status):
         with read() as connection:
             data = creatures.search(connection, filters)
             return render(request, 'creatures.html', {'title': 'Creature Harvesting Directory', 'status': status(connection),
+                'display': presentation(connection, data['items']),
                 'data': data, 'filters': filters, 'references': creatures.catalog_references(connection),
                 'pagination': creatures.page_links(request, data)})
 
@@ -76,7 +78,8 @@ def register_creature_routes(application, render, status):
                         links[label] = request.url.path + '?' + urlencode({**dict(request.query_params),
                             'category': category['category'], 'resource_page': number}) if 1 <= number <= category['pages'] else None
                     resource_pagination[category['category']] = links
-            return render(request, 'creature_detail.html', {'title': creature['name'], 'status': current, 'creature': creature,
+            display = presentation(connection, [creature])
+            return render(request, 'creature_detail.html', {'title': display.creature(creature), 'display': display, 'status': current, 'creature': creature,
                 'evidence': evidence, 'resource_matches': matches, 'selected_planet': filters.get('planet', ''),
                 'selected_category': filters.get('category', ''), 'references': creatures.catalog_references(connection),
                 'pagination': creatures.page_links(request, evidence), 'resource_pagination': resource_pagination})
@@ -89,5 +92,6 @@ def register_creature_routes(application, render, status):
             resource = queries.resource_detail(connection, resource_id, current)
             data = creatures.reverse_lookup(connection, resource_id, filters, current)
             return render(request, 'resource_creatures.html', {'title': 'Creatures for ' + resource['name'], 'status': current,
+                'display': presentation(connection, data['items']),
                 'resource': resource, 'data': data, 'filters': filters, 'references': creatures.catalog_references(connection),
                 'pagination': creatures.page_links(request, data)})
