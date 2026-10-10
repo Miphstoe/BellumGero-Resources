@@ -486,3 +486,7 @@ class ResourceIdentityConflict(Base):
     details: Mapped[dict[str, Any]] = jsonb_default()
     status: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+
+
+# Register the additive creature catalog with the shared Alembic metadata.
+from app.db import creatures as _creature_models  # noqa: E402,F401

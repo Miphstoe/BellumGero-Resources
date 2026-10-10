@@ -1,0 +1,209 @@
+{
+  "source_revision": "54c71a88190a7bfc6ad98b2b26280670b4b1bd10",
+  "manifest_sha256": "c7d2ed31dfd376823e4a6e02102c3a18e806421b0afc79c1e2ff981c5737e4f7",
+  "parsed": {
+    "files": 7138,
+    "parsed_creatures": 3814,
+    "stored_creatures": 3813,
+    "validated_creatures": 3813,
+    "creatures_with_verified_spawn": 1407,
+    "spawn_nodes": 2395,
+    "spawn_relationships": 16445,
+    "spawn_evidence": 24882,
+    "diagnostics": 15745,
+    "zones": [
+      "corellia",
+      "dantooine",
+      "dathomir",
+      "dungeon1",
+      "endor",
+      "lok",
+      "naboo",
+      "rori",
+      "talus",
+      "tatooine",
+      "tutorial",
+      "yavin4"
+    ],
+    "fatal": false
+  },
+  "imported": {
+    "files": 7138,
+    "parsed_creatures": 3814,
+    "stored_creatures": 3813,
+    "validated_creatures": 3813,
+    "creatures_with_verified_spawn": 1407,
+    "spawn_nodes": 2395,
+    "spawn_relationships": 16445,
+    "spawn_evidence": 24882,
+    "diagnostics": 16364,
+    "zones": [
+      "corellia",
+      "dantooine",
+      "dathomir",
+      "dungeon1",
+      "endor",
+      "lok",
+      "naboo",
+      "rori",
+      "talus",
+      "tatooine",
+      "tutorial",
+      "yavin4"
+    ],
+    "fatal": false,
+    "mapped_spawn_evidence": 24882,
+    "validated_spawn_creatures": 1407,
+    "dry_run": false,
+    "revision_id": 1,
+    "idempotent": false
+  },
+  "database_counts": {
+    "creature_definitions": 3813,
+    "creature_source_files": 7138,
+    "creature_spawn_nodes": 2395,
+    "creature_import_diagnostics": 16364,
+    "creature_harvests": 15252,
+    "harvest_class_mappings": 1984,
+    "creature_spawn_evidence": 24882,
+    "creature_spawn_relationships": 16445
+  },
+  "spawn_node_counts": {
+    "group": 480,
+    "lair": 1488,
+    "region": 427
+  },
+  "diagnostics": {
+    "conditional_spawn": 6037,
+    "duplicate_registration": 2,
+    "dynamic_assignment": 1,
+    "dynamic_block": 3157,
+    "inactive_group_entry": 54,
+    "missing_region_root": 2,
+    "mission_planet_unverified": 13,
+    "property_mutation": 22,
+    "repeated_include": 4,
+    "unknown_planet": 2,
+    "unmapped_harvest_class": 617,
+    "unresolved_definition": 2,
+    "unresolved_spawn_reference": 3,
+    "unsupported_call": 6422,
+    "unvalidated_region_flags": 26
+  },
+  "planet_creature_counts": {
+    "corellia": 250,
+    "dantooine": 205,
+    "dathomir": 194,
+    "endor": 193,
+    "lok": 167,
+    "naboo": 191,
+    "rori": 210,
+    "talus": 228,
+    "tatooine": 241,
+    "yavin4": 153
+  },
+  "resource_tables_unchanged": true,
+  "idempotent": true,
+  "bantha_rori_spawn_paths": 1,
+  "taxonomy": {
+    "resource_types": 725,
+    "source_resource_types": 725,
+    "direct_edges": 724,
+    "closure_rows": 4828,
+    "stat_ranges": 7250
+  },
+  "harvestable_creatures_with_verified_spawn": 739,
+  "quarantined": [
+    {
+      "path": "MMOCoreORB/bin/scripts/mobile/talus/woodland_kima.lua",
+      "line": 47,
+      "code": "duplicate_registration",
+      "details": {
+        "kind": "creature",
+        "template": "woodland_kima"
+      }
+    },
+    {
+      "path": "MMOCoreORB/bin/scripts/mobile/spawn/tatooine/tatooine_medium_squill_sw.lua",
+      "line": 222,
+      "code": "duplicate_registration",
+      "details": {
+        "kind": "group",
+        "template": "tatooine_medium_kitonaks_se"
+      }
+    },
+    {
+      "path": "MMOCoreORB/bin/scripts/mobile/talus/woodland_kima.lua",
+      "line": 47,
+      "code": "unresolved_definition",
+      "details": {
+        "kind": "creature",
+        "template": "woodland_kima"
+      }
+    },
+    {
+      "path": "MMOCoreORB/bin/scripts/mobile/spawn/tatooine/tatooine_medium_squill_sw.lua",
+      "line": 222,
+      "code": "unresolved_definition",
+      "details": {
+        "kind": "group",
+        "template": "tatooine_medium_kitonaks_se"
+      }
+    },
+    {
+      "path": "MMOCoreORB/bin/scripts/managers/planet/tatooine_regions.lua",
+      "line": 16,
+      "code": "unresolved_spawn_reference",
+      "details": {
+        "child": [
+          "group",
+          "tatooine_medium_kitonaks_se"
+        ],
+        "parent": [
+          "region",
+          "tatooine:214:@tatooine_region_names:mospic_high_range_5"
+        ]
+      }
+    },
+    {
+      "path": "MMOCoreORB/bin/scripts/mobile/lair/creature_lair/talus/talus_woodland_kima_lair_neutral_medium.lua",
+      "line": 11,
+      "code": "unresolved_spawn_reference",
+      "details": {
+        "child": [
+          "creature",
+          "woodland_kima"
+        ],
+        "parent": [
+          "lair",
+          "talus_woodland_kima_lair_neutral_medium"
+        ]
+      }
+    },
+    {
+      "path": "MMOCoreORB/bin/scripts/mobile/lair/creature_dynamic/talus/talus_woodland_kima_pack_neutral_none.lua",
+      "line": 12,
+      "code": "unresolved_spawn_reference",
+      "details": {
+        "child": [
+          "creature",
+          "woodland_kima"
+        ],
+        "parent": [
+          "lair",
+          "talus_woodland_kima_pack_neutral_none"
+        ]
+      }
+    }
+  ],
+  "validation": {
+    "full_suite_passed": 486,
+    "new_catalog_tests_passed": 41,
+    "warnings": [
+      "Existing Starlette/httpx TestClient deprecation"
+    ],
+    "database": "Isolated PostgreSQL 16 at 127.0.0.1:55437/bellum_resources_test",
+    "source_method": "Read-only git archive of the stated BellumGero-Live commit; no Lua executed",
+    "migration": "20261009_0003; downgrade to base, upgrade head, downgrade and re-upgrade tested"
+  }
+}

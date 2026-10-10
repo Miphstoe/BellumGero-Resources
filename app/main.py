@@ -20,6 +20,7 @@ from app.web import queries
 from app.web.ingestion import UploadRejected, ingest, record_attempt
 from app.web.security import authenticate, check_csrf, issue_csrf
 from app.web.settings import WebSettings
+from app.web.creature_routes import register_creature_routes
 from app.importing.core3_live.exporter_adapter import CountSafetyPolicy
 
 logger = logging.getLogger(__name__)
@@ -210,6 +211,8 @@ def create_app(*, engine=None, settings=None):
             resource = queries.resource_detail(connection, resource_id, current_status)
             return render(request, "detail.html", {"status": current_status, "resource": resource,
                 "observations": resource["observations"], "lifecycle": resource["lifecycle"]})
+
+    register_creature_routes(application, render, status)
 
     def admin_response(request, result=None, code=200):
         with application.state.engine.connect() as connection:
