@@ -1,0 +1,1101 @@
+{
+  "spawn_sha256": "e64ac7011bddaf6db14a1c62ea330018f794ec429e7f61ad7261eb2ce642b3f1",
+  "spawn_byte_size": 10234742,
+  "sql_source": {
+    "relative_path": "MMOCoreORB/sql/datatables.sql",
+    "sha256": "c7bffc10817ec739bcb5b6d33a2753efb77c770f6d69e1ce8914de4fb2e2e45a",
+    "byte_size": 2260402,
+    "parser_schema_version": "core3-resource-types-v1"
+  },
+  "sql_commit_sha": "e99f91192ba059151bfed4be5e6ea07884801ac0",
+  "spawn_distinct_type_count": 625,
+  "hoth_classification_count": 42,
+  "merged_summary": {
+    "core3_commit_sha": "e99f91192ba059151bfed4be5e6ea07884801ac0",
+    "source_of_truth": "MMOCoreORB/sql/datatables.sql",
+    "resource_tree_iff_exists": false,
+    "tre_extraction_required": false,
+    "parser_schema_version": "core3-resource-types-v1",
+    "custom_classification_count": 42,
+    "resource_type_count": 767,
+    "direct_edge_count": 766,
+    "closure_row_count": 5132,
+    "stat_range_count": 7250,
+    "unresolved_display_name_count": 0,
+    "unresolved_parent_count": 0,
+    "validation_warning_count": 23,
+    "validation_error_count": 0
+  },
+  "classifications": [
+    {
+      "source_type_id": "bone_avian_hoth",
+      "display_name": "Hothian Avian Bones",
+      "class_path": [
+        "Resources",
+        "Organic",
+        "Creature Resources",
+        "Creature Structural",
+        "Bone",
+        "Avian bone",
+        "Hothian Avian Bones"
+      ],
+      "stf_class_path": [
+        "resource",
+        "organic",
+        "creature_resources",
+        "creature_structural",
+        "bone",
+        "bone_avian",
+        "bone_avian_hoth"
+      ],
+      "direct_parents": [
+        "bone_avian"
+      ]
+    },
+    {
+      "source_type_id": "bone_horn_hoth",
+      "display_name": "Hothian Horn",
+      "class_path": [
+        "Resources",
+        "Organic",
+        "Creature Resources",
+        "Creature Structural",
+        "Horn",
+        "Hothian Horn"
+      ],
+      "stf_class_path": [
+        "resource",
+        "organic",
+        "creature_resources",
+        "creature_structural",
+        "bone_horn",
+        "bone_horn_hoth"
+      ],
+      "direct_parents": [
+        "bone_horn"
+      ]
+    },
+    {
+      "source_type_id": "bone_mammal_hoth",
+      "display_name": "Hothian Animal Bones",
+      "class_path": [
+        "Resources",
+        "Organic",
+        "Creature Resources",
+        "Creature Structural",
+        "Bone",
+        "Hothian Animal Bones"
+      ],
+      "stf_class_path": [
+        "resource",
+        "organic",
+        "creature_resources",
+        "creature_structural",
+        "bone",
+        "bone_mammal_hoth"
+      ],
+      "direct_parents": [
+        "bone"
+      ]
+    },
+    {
+      "source_type_id": "corn_domesticated_hoth",
+      "display_name": "Hothian Domesticated Corn",
+      "class_path": [
+        "Resources",
+        "Organic",
+        "Flora Resources",
+        "Flora Food",
+        "Cereal",
+        "Corn",
+        "Domesticated Corn",
+        "Hothian Domesticated Corn"
+      ],
+      "stf_class_path": [
+        "resource",
+        "organic",
+        "flora_resources",
+        "flora_food",
+        "cereal",
+        "corn",
+        "corn_domesticated",
+        "corn_domesticated_hoth"
+      ],
+      "direct_parents": [
+        "corn_domesticated"
+      ]
+    },
+    {
+      "source_type_id": "corn_wild_hoth",
+      "display_name": "Hothian Wild Corn",
+      "class_path": [
+        "Resources",
+        "Organic",
+        "Flora Resources",
+        "Flora Food",
+        "Cereal",
+        "Corn",
+        "Wild Corn",
+        "Hothian Wild Corn"
+      ],
+      "stf_class_path": [
+        "resource",
+        "organic",
+        "flora_resources",
+        "flora_food",
+        "cereal",
+        "corn",
+        "corn_wild",
+        "corn_wild_hoth"
+      ],
+      "direct_parents": [
+        "corn_wild"
+      ]
+    },
+    {
+      "source_type_id": "energy_renewable_unlimited_solar_hoth",
+      "display_name": "Hothian Solar Renewable Energy",
+      "class_path": [
+        "Resources",
+        "Energy",
+        "Renewable energy",
+        "Non Site-Restricted Renewable Energy",
+        "Solar Energy",
+        "Hothian Solar Renewable Energy"
+      ],
+      "stf_class_path": [
+        "resource",
+        "energy",
+        "energy_renewable",
+        "energy_renewable_unlimited",
+        "energy_renewable_unlimited_solar",
+        "energy_renewable_unlimited_solar_hoth"
+      ],
+      "direct_parents": [
+        "energy_renewable_unlimited_solar"
+      ]
+    },
+    {
+      "source_type_id": "energy_renewable_unlimited_wind_hoth",
+      "display_name": "Hothian Wind Renewable Energy",
+      "class_path": [
+        "Resources",
+        "Energy",
+        "Renewable energy",
+        "Non Site-Restricted Renewable Energy",
+        "Wind Energy",
+        "Hothian Wind Renewable Energy"
+      ],
+      "stf_class_path": [
+        "resource",
+        "energy",
+        "energy_renewable",
+        "energy_renewable_unlimited",
+        "energy_renewable_unlimited_wind",
+        "energy_renewable_unlimited_wind_hoth"
+      ],
+      "direct_parents": [
+        "energy_renewable_unlimited_wind"
+      ]
+    },
+    {
+      "source_type_id": "fiberplast_hoth",
+      "display_name": "Hothian Fiberplast",
+      "class_path": [
+        "Resources",
+        "Inorganic",
+        "Chemical",
+        "Fiberplast",
+        "Hothian Fiberplast"
+      ],
+      "stf_class_path": [
+        "resource",
+        "inorganic",
+        "chemical",
+        "fiberplast",
+        "fiberplast_hoth"
+      ],
+      "direct_parents": [
+        "fiberplast"
+      ]
+    },
+    {
+      "source_type_id": "fruit_berries_hoth",
+      "display_name": "Hothian Berry Fruit",
+      "class_path": [
+        "Resources",
+        "Organic",
+        "Flora Resources",
+        "Flora Food",
+        "Seeds",
+        "Fruit",
+        "Berries",
+        "Hothian Berry Fruit"
+      ],
+      "stf_class_path": [
+        "resource",
+        "organic",
+        "flora_resources",
+        "flora_food",
+        "seeds",
+        "fruit",
+        "fruit_berries",
+        "fruit_berries_hoth"
+      ],
+      "direct_parents": [
+        "fruit_berries"
+      ]
+    },
+    {
+      "source_type_id": "fruit_flowers_hoth",
+      "display_name": "Hothian Flower Fruit",
+      "class_path": [
+        "Resources",
+        "Organic",
+        "Flora Resources",
+        "Flora Food",
+        "Seeds",
+        "Fruit",
+        "Flowers",
+        "Hothian Flower Fruit"
+      ],
+      "stf_class_path": [
+        "resource",
+        "organic",
+        "flora_resources",
+        "flora_food",
+        "seeds",
+        "fruit",
+        "fruit_flowers",
+        "fruit_flowers_hoth"
+      ],
+      "direct_parents": [
+        "fruit_flowers"
+      ]
+    },
+    {
+      "source_type_id": "fruit_fruits_hoth",
+      "display_name": "Hothian Fruit",
+      "class_path": [
+        "Resources",
+        "Organic",
+        "Flora Resources",
+        "Flora Food",
+        "Seeds",
+        "Fruit",
+        "Fruits",
+        "Hothian Fruit"
+      ],
+      "stf_class_path": [
+        "resource",
+        "organic",
+        "flora_resources",
+        "flora_food",
+        "seeds",
+        "fruit",
+        "fruit_fruits",
+        "fruit_fruits_hoth"
+      ],
+      "direct_parents": [
+        "fruit_fruits"
+      ]
+    },
+    {
+      "source_type_id": "hide_bristley_hoth",
+      "display_name": "Hothian Bristley Hide",
+      "class_path": [
+        "Resources",
+        "Organic",
+        "Creature Resources",
+        "Creature Structural",
+        "Hide",
+        "Bristley Hide",
+        "Hothian Bristley Hide"
+      ],
+      "stf_class_path": [
+        "resource",
+        "organic",
+        "creature_resources",
+        "creature_structural",
+        "hide",
+        "hide_bristley",
+        "hide_bristley_hoth"
+      ],
+      "direct_parents": [
+        "hide_bristley"
+      ]
+    },
+    {
+      "source_type_id": "hide_leathery_hoth",
+      "display_name": "Hothian Leathery Hide",
+      "class_path": [
+        "Resources",
+        "Organic",
+        "Creature Resources",
+        "Creature Structural",
+        "Hide",
+        "Leathery Hide",
+        "Hothian Leathery Hide"
+      ],
+      "stf_class_path": [
+        "resource",
+        "organic",
+        "creature_resources",
+        "creature_structural",
+        "hide",
+        "hide_leathery",
+        "hide_leathery_hoth"
+      ],
+      "direct_parents": [
+        "hide_leathery"
+      ]
+    },
+    {
+      "source_type_id": "hide_scaley_hoth",
+      "display_name": "Hothian Scaley Hide",
+      "class_path": [
+        "Resources",
+        "Organic",
+        "Creature Resources",
+        "Creature Structural",
+        "Hide",
+        "Scaley Hide",
+        "Hothian Scaley Hide"
+      ],
+      "stf_class_path": [
+        "resource",
+        "organic",
+        "creature_resources",
+        "creature_structural",
+        "hide",
+        "hide_scaley",
+        "hide_scaley_hoth"
+      ],
+      "direct_parents": [
+        "hide_scaley"
+      ]
+    },
+    {
+      "source_type_id": "hide_wooly_hoth",
+      "display_name": "Hothian Wooly Hide",
+      "class_path": [
+        "Resources",
+        "Organic",
+        "Creature Resources",
+        "Creature Structural",
+        "Hide",
+        "Wooly Hide",
+        "Hothian Wooly Hide"
+      ],
+      "stf_class_path": [
+        "resource",
+        "organic",
+        "creature_resources",
+        "creature_structural",
+        "hide",
+        "hide_wooly",
+        "hide_wooly_hoth"
+      ],
+      "direct_parents": [
+        "hide_wooly"
+      ]
+    },
+    {
+      "source_type_id": "meat_avian_hoth",
+      "display_name": "Hothian Avian Meat",
+      "class_path": [
+        "Resources",
+        "Organic",
+        "Creature Resources",
+        "Creature Food",
+        "Meat",
+        "Avian Meat",
+        "Hothian Avian Meat"
+      ],
+      "stf_class_path": [
+        "resource",
+        "organic",
+        "creature_resources",
+        "creature_food",
+        "meat",
+        "meat_avian",
+        "meat_avian_hoth"
+      ],
+      "direct_parents": [
+        "meat_avian"
+      ]
+    },
+    {
+      "source_type_id": "meat_carnivore_hoth",
+      "display_name": "Hothian Carnivore Meat",
+      "class_path": [
+        "Resources",
+        "Organic",
+        "Creature Resources",
+        "Creature Food",
+        "Meat",
+        "Carnivore Meat",
+        "Hothian Carnivore Meat"
+      ],
+      "stf_class_path": [
+        "resource",
+        "organic",
+        "creature_resources",
+        "creature_food",
+        "meat",
+        "meat_carnivore",
+        "meat_carnivore_hoth"
+      ],
+      "direct_parents": [
+        "meat_carnivore"
+      ]
+    },
+    {
+      "source_type_id": "meat_domesticated_hoth",
+      "display_name": "Hothian Domesticated Meat",
+      "class_path": [
+        "Resources",
+        "Organic",
+        "Creature Resources",
+        "Creature Food",
+        "Meat",
+        "Domesticated Meat",
+        "Hothian Domesticated Meat"
+      ],
+      "stf_class_path": [
+        "resource",
+        "organic",
+        "creature_resources",
+        "creature_food",
+        "meat",
+        "meat_domesticated",
+        "meat_domesticated_hoth"
+      ],
+      "direct_parents": [
+        "meat_domesticated"
+      ]
+    },
+    {
+      "source_type_id": "meat_egg_hoth",
+      "display_name": "Hothian Egg",
+      "class_path": [
+        "Resources",
+        "Organic",
+        "Creature Resources",
+        "Creature Food",
+        "Meat",
+        "Egg",
+        "Hothian Egg"
+      ],
+      "stf_class_path": [
+        "resource",
+        "organic",
+        "creature_resources",
+        "creature_food",
+        "meat",
+        "meat_egg",
+        "meat_egg_hoth"
+      ],
+      "direct_parents": [
+        "meat_egg"
+      ]
+    },
+    {
+      "source_type_id": "meat_herbivore_hoth",
+      "display_name": "Hothian Herbivore Meat",
+      "class_path": [
+        "Resources",
+        "Organic",
+        "Creature Resources",
+        "Creature Food",
+        "Meat",
+        "Herbivore Meat",
+        "Hothian Herbivore Meat"
+      ],
+      "stf_class_path": [
+        "resource",
+        "organic",
+        "creature_resources",
+        "creature_food",
+        "meat",
+        "meat_herbivore",
+        "meat_herbivore_hoth"
+      ],
+      "direct_parents": [
+        "meat_herbivore"
+      ]
+    },
+    {
+      "source_type_id": "meat_insect_hoth",
+      "display_name": "Hothian Insect Meat",
+      "class_path": [
+        "Resources",
+        "Organic",
+        "Creature Resources",
+        "Creature Food",
+        "Meat",
+        "Insect Meat",
+        "Hothian Insect Meat"
+      ],
+      "stf_class_path": [
+        "resource",
+        "organic",
+        "creature_resources",
+        "creature_food",
+        "meat",
+        "meat_insect",
+        "meat_insect_hoth"
+      ],
+      "direct_parents": [
+        "meat_insect"
+      ]
+    },
+    {
+      "source_type_id": "meat_reptilian_hoth",
+      "display_name": "Hothian Reptilian Meat",
+      "class_path": [
+        "Resources",
+        "Organic",
+        "Creature Resources",
+        "Creature Food",
+        "Meat",
+        "Reptillian Meat",
+        "Hothian Reptilian Meat"
+      ],
+      "stf_class_path": [
+        "resource",
+        "organic",
+        "creature_resources",
+        "creature_food",
+        "meat",
+        "meat_reptillian",
+        "meat_reptilian_hoth"
+      ],
+      "direct_parents": [
+        "meat_reptillian"
+      ]
+    },
+    {
+      "source_type_id": "meat_wild_hoth",
+      "display_name": "Hothian Wild Meat",
+      "class_path": [
+        "Resources",
+        "Organic",
+        "Creature Resources",
+        "Creature Food",
+        "Meat",
+        "Wild Meat",
+        "Hothian Wild Meat"
+      ],
+      "stf_class_path": [
+        "resource",
+        "organic",
+        "creature_resources",
+        "creature_food",
+        "meat",
+        "meat_wild",
+        "meat_wild_hoth"
+      ],
+      "direct_parents": [
+        "meat_wild"
+      ]
+    },
+    {
+      "source_type_id": "milk_domesticated_hoth",
+      "display_name": "Hothian Domesticated Milk",
+      "class_path": [
+        "Resources",
+        "Organic",
+        "Creature Resources",
+        "Creature Food",
+        "Milk",
+        "Domesticated Milk",
+        "Hothian Domesticated Milk"
+      ],
+      "stf_class_path": [
+        "resource",
+        "organic",
+        "creature_resources",
+        "creature_food",
+        "milk",
+        "milk_domesticated",
+        "milk_domesticated_hoth"
+      ],
+      "direct_parents": [
+        "milk_domesticated"
+      ]
+    },
+    {
+      "source_type_id": "milk_wild_hoth",
+      "display_name": "Hothian Wild Milk",
+      "class_path": [
+        "Resources",
+        "Organic",
+        "Creature Resources",
+        "Creature Food",
+        "Milk",
+        "Wild Milk",
+        "Hothian Wild Milk"
+      ],
+      "stf_class_path": [
+        "resource",
+        "organic",
+        "creature_resources",
+        "creature_food",
+        "milk",
+        "milk_wild",
+        "milk_wild_hoth"
+      ],
+      "direct_parents": [
+        "milk_wild"
+      ]
+    },
+    {
+      "source_type_id": "oats_domesticated_hoth",
+      "display_name": "Hothian Domesticated Oats",
+      "class_path": [
+        "Resources",
+        "Organic",
+        "Flora Resources",
+        "Flora Food",
+        "Cereal",
+        "Oats",
+        "Domesticated Oats",
+        "Hothian Domesticated Oats"
+      ],
+      "stf_class_path": [
+        "resource",
+        "organic",
+        "flora_resources",
+        "flora_food",
+        "cereal",
+        "oats",
+        "oats_domesticated",
+        "oats_domesticated_hoth"
+      ],
+      "direct_parents": [
+        "oats_domesticated"
+      ]
+    },
+    {
+      "source_type_id": "oats_wild_hoth",
+      "display_name": "Hothian Wild Oats",
+      "class_path": [
+        "Resources",
+        "Organic",
+        "Flora Resources",
+        "Flora Food",
+        "Cereal",
+        "Oats",
+        "Wild Oats",
+        "Hothian Wild Oats"
+      ],
+      "stf_class_path": [
+        "resource",
+        "organic",
+        "flora_resources",
+        "flora_food",
+        "cereal",
+        "oats",
+        "oats_wild",
+        "oats_wild_hoth"
+      ],
+      "direct_parents": [
+        "oats_wild"
+      ]
+    },
+    {
+      "source_type_id": "rice_domesticated_hoth",
+      "display_name": "Hothian Domesticated Rice",
+      "class_path": [
+        "Resources",
+        "Organic",
+        "Flora Resources",
+        "Flora Food",
+        "Cereal",
+        "Rice",
+        "Domesticated Rice",
+        "Hothian Domesticated Rice"
+      ],
+      "stf_class_path": [
+        "resource",
+        "organic",
+        "flora_resources",
+        "flora_food",
+        "cereal",
+        "rice",
+        "rice_domesticated",
+        "rice_domesticated_hoth"
+      ],
+      "direct_parents": [
+        "rice_domesticated"
+      ]
+    },
+    {
+      "source_type_id": "rice_wild_hoth",
+      "display_name": "Hothian Wild Rice",
+      "class_path": [
+        "Resources",
+        "Organic",
+        "Flora Resources",
+        "Flora Food",
+        "Cereal",
+        "Rice",
+        "Wild Rice",
+        "Hothian Wild Rice"
+      ],
+      "stf_class_path": [
+        "resource",
+        "organic",
+        "flora_resources",
+        "flora_food",
+        "cereal",
+        "rice",
+        "rice_wild",
+        "rice_wild_hoth"
+      ],
+      "direct_parents": [
+        "rice_wild"
+      ]
+    },
+    {
+      "source_type_id": "seafood_crustacean_hoth",
+      "display_name": "Hothian Crustacean Meat",
+      "class_path": [
+        "Resources",
+        "Organic",
+        "Creature Resources",
+        "Creature Food",
+        "Meat",
+        "Seafood",
+        "Crustacean",
+        "Hothian Crustacean Meat"
+      ],
+      "stf_class_path": [
+        "resource",
+        "organic",
+        "creature_resources",
+        "creature_food",
+        "meat",
+        "seafood",
+        "seafood_crustacean",
+        "seafood_crustacean_hoth"
+      ],
+      "direct_parents": [
+        "seafood_crustacean"
+      ]
+    },
+    {
+      "source_type_id": "seafood_fish_hoth",
+      "display_name": "Hothian Fish Meat",
+      "class_path": [
+        "Resources",
+        "Organic",
+        "Creature Resources",
+        "Creature Food",
+        "Meat",
+        "Seafood",
+        "Fish",
+        "Hothian Fish Meat"
+      ],
+      "stf_class_path": [
+        "resource",
+        "organic",
+        "creature_resources",
+        "creature_food",
+        "meat",
+        "seafood",
+        "seafood_fish",
+        "seafood_fish_hoth"
+      ],
+      "direct_parents": [
+        "seafood_fish"
+      ]
+    },
+    {
+      "source_type_id": "seafood_mollusk_hoth",
+      "display_name": "Hothian Mollusk Meat",
+      "class_path": [
+        "Resources",
+        "Organic",
+        "Creature Resources",
+        "Creature Food",
+        "Meat",
+        "Seafood",
+        "Mollusk",
+        "Hothian Mollusk Meat"
+      ],
+      "stf_class_path": [
+        "resource",
+        "organic",
+        "creature_resources",
+        "creature_food",
+        "meat",
+        "seafood",
+        "seafood_mollusk",
+        "seafood_mollusk_hoth"
+      ],
+      "direct_parents": [
+        "seafood_mollusk"
+      ]
+    },
+    {
+      "source_type_id": "softwood_conifer_hoth",
+      "display_name": "Hothian Conifer Wood",
+      "class_path": [
+        "Resources",
+        "Organic",
+        "Flora Resources",
+        "Flora Structural",
+        "Wood",
+        "Soft Wood",
+        "Hothian Conifer Wood"
+      ],
+      "stf_class_path": [
+        "resource",
+        "organic",
+        "flora_resources",
+        "flora_structural",
+        "wood",
+        "softwood",
+        "softwood_conifer_hoth"
+      ],
+      "direct_parents": [
+        "softwood"
+      ]
+    },
+    {
+      "source_type_id": "softwood_evergreen_hoth",
+      "display_name": "Hothian Evergreen Wood",
+      "class_path": [
+        "Resources",
+        "Organic",
+        "Flora Resources",
+        "Flora Structural",
+        "Wood",
+        "Soft Wood",
+        "Evergreen Soft Wood",
+        "Hothian Evergreen Wood"
+      ],
+      "stf_class_path": [
+        "resource",
+        "organic",
+        "flora_resources",
+        "flora_structural",
+        "wood",
+        "softwood",
+        "softwood_evergreen",
+        "softwood_evergreen_hoth"
+      ],
+      "direct_parents": [
+        "softwood_evergreen"
+      ]
+    },
+    {
+      "source_type_id": "vegetable_beans_hoth",
+      "display_name": "Hothian Vegetable Beans",
+      "class_path": [
+        "Resources",
+        "Organic",
+        "Flora Resources",
+        "Flora Food",
+        "Seeds",
+        "Vegetables",
+        "Beans",
+        "Hothian Vegetable Beans"
+      ],
+      "stf_class_path": [
+        "resource",
+        "organic",
+        "flora_resources",
+        "flora_food",
+        "seeds",
+        "vegetable",
+        "vegetable_beans",
+        "vegetable_beans_hoth"
+      ],
+      "direct_parents": [
+        "vegetable_beans"
+      ]
+    },
+    {
+      "source_type_id": "vegetable_fungi_hoth",
+      "display_name": "Hothian Vegetable Fungus",
+      "class_path": [
+        "Resources",
+        "Organic",
+        "Flora Resources",
+        "Flora Food",
+        "Seeds",
+        "Vegetables",
+        "Fungi",
+        "Hothian Vegetable Fungus"
+      ],
+      "stf_class_path": [
+        "resource",
+        "organic",
+        "flora_resources",
+        "flora_food",
+        "seeds",
+        "vegetable",
+        "vegetable_fungi",
+        "vegetable_fungi_hoth"
+      ],
+      "direct_parents": [
+        "vegetable_fungi"
+      ]
+    },
+    {
+      "source_type_id": "vegetable_greens_hoth",
+      "display_name": "Hothian Vegetable Greens",
+      "class_path": [
+        "Resources",
+        "Organic",
+        "Flora Resources",
+        "Flora Food",
+        "Seeds",
+        "Vegetables",
+        "Greens",
+        "Hothian Vegetable Greens"
+      ],
+      "stf_class_path": [
+        "resource",
+        "organic",
+        "flora_resources",
+        "flora_food",
+        "seeds",
+        "vegetable",
+        "vegetable_greens",
+        "vegetable_greens_hoth"
+      ],
+      "direct_parents": [
+        "vegetable_greens"
+      ]
+    },
+    {
+      "source_type_id": "vegetable_tubers_hoth",
+      "display_name": "Hothian Vegetable Tubers",
+      "class_path": [
+        "Resources",
+        "Organic",
+        "Flora Resources",
+        "Flora Food",
+        "Seeds",
+        "Vegetables",
+        "Tubers",
+        "Hothian Vegetable Tubers"
+      ],
+      "stf_class_path": [
+        "resource",
+        "organic",
+        "flora_resources",
+        "flora_food",
+        "seeds",
+        "vegetable",
+        "vegetable_tubers",
+        "vegetable_tubers_hoth"
+      ],
+      "direct_parents": [
+        "vegetable_tubers"
+      ]
+    },
+    {
+      "source_type_id": "water_vapor_hoth",
+      "display_name": "Hothian Water Vapor",
+      "class_path": [
+        "Resources",
+        "Inorganic",
+        "Water",
+        "Hothian Water Vapor"
+      ],
+      "stf_class_path": [
+        "resource",
+        "inorganic",
+        "water",
+        "water_vapor_hoth"
+      ],
+      "direct_parents": [
+        "water"
+      ]
+    },
+    {
+      "source_type_id": "wheat_domesticated_hoth",
+      "display_name": "Hothian Domesticated Wheat",
+      "class_path": [
+        "Resources",
+        "Organic",
+        "Flora Resources",
+        "Flora Food",
+        "Cereal",
+        "Wheat",
+        "Domesticated Wheat",
+        "Hothian Domesticated Wheat"
+      ],
+      "stf_class_path": [
+        "resource",
+        "organic",
+        "flora_resources",
+        "flora_food",
+        "cereal",
+        "wheat",
+        "wheat_domesticated",
+        "wheat_domesticated_hoth"
+      ],
+      "direct_parents": [
+        "wheat_domesticated"
+      ]
+    },
+    {
+      "source_type_id": "wheat_wild_hoth",
+      "display_name": "Hothian Wild Wheat",
+      "class_path": [
+        "Resources",
+        "Organic",
+        "Flora Resources",
+        "Flora Food",
+        "Cereal",
+        "Wheat",
+        "Wild Wheat",
+        "Hothian Wild Wheat"
+      ],
+      "stf_class_path": [
+        "resource",
+        "organic",
+        "flora_resources",
+        "flora_food",
+        "cereal",
+        "wheat",
+        "wheat_wild",
+        "wheat_wild_hoth"
+      ],
+      "direct_parents": [
+        "wheat_wild"
+      ]
+    },
+    {
+      "source_type_id": "wood_deciduous_hoth",
+      "display_name": "Hothian Deciduous Wood",
+      "class_path": [
+        "Resources",
+        "Organic",
+        "Flora Resources",
+        "Flora Structural",
+        "Wood",
+        "Hard Wood",
+        "Hothian Deciduous Wood"
+      ],
+      "stf_class_path": [
+        "resource",
+        "organic",
+        "flora_resources",
+        "flora_structural",
+        "wood",
+        "wood_deciduous",
+        "wood_deciduous_hoth"
+      ],
+      "direct_parents": [
+        "wood_deciduous"
+      ]
+    }
+  ]
+}

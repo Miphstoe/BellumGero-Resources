@@ -156,7 +156,7 @@ class NormalizedIndex:
 
     def summary(self) -> dict[str, Any]:
         unresolved_display_names = sum(1 for item in self.resource_types if not item.display_name_resolved)
-        unresolved_parents = sum(1 for warning in self.validation.warnings if warning.startswith("missing-parent:"))
+        unresolved_parents = sum(1 for warning in [*self.validation.warnings, *self.validation.errors] if warning.startswith("missing-parent:"))
         stat_range_records = sum(len(item.stat_ranges) for item in self.resource_types)
         return {
             "core3_commit_sha": self.core3_commit_sha,
@@ -164,6 +164,7 @@ class NormalizedIndex:
             "resource_tree_iff_exists": self.resource_tree_iff_exists,
             "tre_extraction_required": self.tre_extraction_required,
             "parser_schema_version": INDEXER_SCHEMA_VERSION,
+            "custom_classification_count": sum(not item.stat_ranges for item in self.resource_types),
             "resource_type_count": len(self.resource_types),
             "direct_edge_count": len(self.direct_edges),
             "closure_row_count": len(self.closure),
@@ -500,18 +501,28 @@ def build_closure(resource_type_ids: set[str], direct_edges: tuple[tuple[str, st
     return tuple(ClosureRow(ancestor=a, descendant=d, depth=depth) for (a, d), depth in sorted(rows.items()))
 
 
-def build_index(core3_root: Path) -> NormalizedIndex:
+def build_index(core3_root: Path, spawn_path: Path | None = None) -> NormalizedIndex:
     discovery = discover_core3_inputs(core3_root)
     relative_base = discovery.repository_root or discovery.core3_root
     fingerprint = fingerprint_path(discovery.resource_tree_sql_path, relative_base)
     rows = parse_resource_tree_sql(discovery.resource_tree_sql_path)
     resource_types, validation = normalize_rows(rows, fingerprint.relative_path, fingerprint.sha256)
+    fingerprints = [fingerprint]
+    if spawn_path is not None:
+        spawn_path = spawn_path if spawn_path.is_absolute() else relative_base / spawn_path
+        if not spawn_path.is_file():
+            raise FileNotFoundError(f"Optional spawn file not found: {spawn_path}")
+        spawn_fingerprint = fingerprint_path(spawn_path)
+        spawn_fingerprint = SourceFileFingerprint(str(spawn_path.resolve()), spawn_fingerprint.sha256, spawn_fingerprint.byte_size)
+        fingerprints.append(spawn_fingerprint)
+        from .spawn_classifications import extend_classifications
+        resource_types = extend_classifications(resource_types, spawn_path.read_text(encoding="utf-8"), spawn_fingerprint, validation)
     direct_edges = build_direct_edges(resource_types)
     closure = build_closure({item.source_type_id for item in resource_types}, direct_edges)
     return NormalizedIndex(
         core3_root=str(discovery.core3_root),
         core3_commit_sha=discovery.commit_sha,
-        source_files=(fingerprint,),
+        source_files=tuple(fingerprints),
         resource_types=resource_types,
         direct_edges=direct_edges,
         closure=closure,
@@ -531,12 +542,23 @@ def load_index(connection, index: NormalizedIndex) -> dict[str, int]:
     if index.validation.errors:
         raise ValueError("Cannot load Core3 resource type index with validation errors")
 
+    plan = inspect_database(connection, index)
+    if plan["conflicts"]:
+        raise ValueError(f"Cannot load taxonomy: {plan['conflicts']}")
     source_instance_id = connection.execute(
         text("SELECT id FROM source_instances WHERE code = 'bellum-gero-live'")
     ).scalar_one()
 
+    existing_mappings = dict(connection.execute(text(
+        "SELECT source_type_key, canonical_type_id FROM source_resource_types "
+        "WHERE source_instance_id = :id AND canonical_type_id IS NOT NULL"
+    ), {"id": source_instance_id}).all())
+    existing_ids = set(connection.execute(text("SELECT id FROM resource_types")).scalars())
     resource_type_ids: dict[str, int] = {}
     for item in index.resource_types:
+        if item.source_type_id in existing_mappings:
+            resource_type_ids[item.source_type_id] = existing_mappings[item.source_type_id]
+            continue
         metadata = json.dumps(
             {
                 "source": EDGE_SOURCE,
@@ -558,22 +580,14 @@ def load_index(connection, index: NormalizedIndex) -> dict[str, int]:
                 VALUES
                     (:slug, :display_name, 'core3', :is_spawnable, :core3_stf_name, :core3_display_class,
                      :container_type, :inventory_type, CAST(:metadata AS jsonb))
-                ON CONFLICT (slug) DO UPDATE SET
-                    display_name = EXCLUDED.display_name,
-                    kind = EXCLUDED.kind,
-                    is_spawnable = EXCLUDED.is_spawnable,
-                    core3_stf_name = EXCLUDED.core3_stf_name,
-                    core3_display_class = EXCLUDED.core3_display_class,
-                    container_type = EXCLUDED.container_type,
-                    inventory_type = EXCLUDED.inventory_type,
-                    metadata = EXCLUDED.metadata
+                ON CONFLICT (slug) DO UPDATE SET slug = resource_types.slug
                 RETURNING id
                 """
             ),
             {
                 "slug": item.source_type_id,
                 "display_name": item.display_name or item.source_type_id,
-                "is_spawnable": len(item.direct_parents) > 0 and item.random_name_class is not None,
+                "is_spawnable": len(item.direct_parents) > 0 and (item.random_name_class is not None or not item.stat_ranges),
                 "core3_stf_name": item.source_type_id,
                 "core3_display_class": item.display_name,
                 "container_type": item.container_type,
@@ -585,7 +599,7 @@ def load_index(connection, index: NormalizedIndex) -> dict[str, int]:
 
     source_type_ids: dict[str, int] = {}
     for item in index.resource_types:
-        metadata = json.dumps({"source": EDGE_SOURCE, "source_fingerprint": item.source_fingerprint}, sort_keys=True)
+        metadata = json.dumps({"source": EDGE_SOURCE, "source_path": item.source_path, "source_fingerprint": item.source_fingerprint}, sort_keys=True)
         row = connection.execute(
             text(
                 """
@@ -596,11 +610,7 @@ def load_index(connection, index: NormalizedIndex) -> dict[str, int]:
                     (:source_instance_id, :source_type_key, :source_type_name, :canonical_type_id,
                      'mapped', 'authoritative', CAST(:metadata AS jsonb))
                 ON CONFLICT (source_instance_id, source_type_key) DO UPDATE SET
-                    source_type_name = EXCLUDED.source_type_name,
-                    canonical_type_id = EXCLUDED.canonical_type_id,
-                    mapping_status = EXCLUDED.mapping_status,
-                    mapping_confidence = EXCLUDED.mapping_confidence,
-                    metadata = EXCLUDED.metadata
+                    source_type_key = source_resource_types.source_type_key
                 RETURNING id
                 """
             ),
@@ -616,6 +626,8 @@ def load_index(connection, index: NormalizedIndex) -> dict[str, int]:
 
     for parent, child in index.direct_edges:
         if parent not in resource_type_ids or child not in resource_type_ids:
+            continue
+        if resource_type_ids[parent] == resource_type_ids[child]:
             continue
         connection.execute(
             text(
@@ -648,18 +660,9 @@ def load_index(connection, index: NormalizedIndex) -> dict[str, int]:
 
     for item in index.resource_types:
         resource_type_id = resource_type_ids[item.source_type_id]
+        if resource_type_id in existing_ids:
+            continue
         for stat_range in item.stat_ranges:
-            connection.execute(
-                text(
-                    """
-                    DELETE FROM resource_type_stat_ranges
-                    WHERE resource_type_id = :resource_type_id
-                      AND source_resource_type_id IS NULL
-                      AND stat_code = :stat_code
-                    """
-                ),
-                {"resource_type_id": resource_type_id, "stat_code": stat_range.stat_code},
-            )
             connection.execute(
                 text(
                     """
@@ -687,6 +690,47 @@ def load_index(connection, index: NormalizedIndex) -> dict[str, int]:
     }
 
 
+def inspect_database(connection, index: NormalizedIndex) -> dict[str, Any]:
+    """Read-only plan; existing mappings and canonical rows are never replaced."""
+    mapping_rows = connection.execute(text(
+        "SELECT source_type_key, canonical_type_id, mapping_status FROM source_resource_types "
+        "WHERE source_instance_id = (SELECT id FROM source_instances WHERE code = 'bellum-gero-live')"
+    )).all()
+    mappings = {row.source_type_key: row.canonical_type_id for row in mapping_rows}
+    mapping_statuses = {row.source_type_key: row.mapping_status for row in mapping_rows}
+    canonical = dict(connection.execute(text("SELECT slug, id FROM resource_types")).all())
+    slugs = set(canonical)
+    conflicts = [f"unresolved-existing-mapping:{item.source_type_id}" for item in index.resource_types if item.source_type_id in mappings and (mappings[item.source_type_id] is None or mapping_statuses[item.source_type_id] != "mapped")]
+    projected = {item.source_type_id: str(mappings.get(item.source_type_id) or canonical.get(item.source_type_id) or f"new:{item.source_type_id}") for item in index.resource_types}
+    existing_edges = {(str(parent), str(child), source) for parent, child, source in connection.execute(text("SELECT parent_type_id, child_type_id, source FROM resource_type_edges"))}
+    edges = {(parent, child) for parent, child, _ in existing_edges}
+    edges.update((projected[parent], projected[child]) for parent, child in index.direct_edges if parent in projected and child in projected and projected[parent] != projected[child])
+    graph_validation = ValidationResult()
+    _detect_cycles(sorted(edges), graph_validation)
+    conflicts.extend(graph_validation.errors)
+    existing_closure = {(str(ancestor), str(descendant)): depth for ancestor, descendant, depth in connection.execute(text("SELECT ancestor_type_id, descendant_type_id, depth FROM resource_type_closure"))}
+    proposed_closure = [row.to_dict() for row in index.closure
+                        if row.ancestor in projected and row.descendant in projected
+                        and (existing_closure.get((projected[row.ancestor], projected[row.descendant])) is None
+                             or row.depth < existing_closure[(projected[row.ancestor], projected[row.descendant])])]
+    return {
+        "conflicts": conflicts,
+        "newly_discovered_classifications": [item.to_dict() for item in index.resource_types if not item.stat_ranges],
+        "existing_mappings": {item.source_type_id: mappings[item.source_type_id] for item in index.resource_types if item.source_type_id in mappings},
+        "proposed_resource_type_inserts": [item.source_type_id for item in index.resource_types if item.source_type_id not in mappings and item.source_type_id not in slugs],
+        "proposed_mapping_inserts": [item.source_type_id for item in index.resource_types if item.source_type_id not in mappings],
+        "existing_mapping_statuses": {key: mapping_statuses[key] for key in projected if key in mapping_statuses},
+        "proposed_edge_inserts": [{"parent": parent, "child": child} for parent, child in index.direct_edges
+                                  if parent in projected and child in projected and projected[parent] != projected[child]
+                                  and (projected[parent], projected[child], EDGE_SOURCE) not in existing_edges],
+        "proposed_closure_upserts": proposed_closure,
+        "proposed_stat_range_inserts": sum(len(item.stat_ranges) for item in index.resource_types
+                                          if item.source_type_id not in mappings and item.source_type_id not in slugs),
+        "validation_errors": index.validation.errors,
+        "hierarchy": {"edges": len(index.direct_edges), "closure": len(index.closure), "operation": "insert missing only; retain existing minimum depths"},
+    }
+
+
 def _print_summary(index: NormalizedIndex, output_path: Path | None = None) -> None:
     summary = index.summary()
     for key in sorted(summary):
@@ -694,6 +738,11 @@ def _print_summary(index: NormalizedIndex, output_path: Path | None = None) -> N
     print("source_files:")
     for source_file in index.source_files:
         print(f"  - {source_file.relative_path} sha256={source_file.sha256} bytes={source_file.byte_size}")
+    custom_types = [item.source_type_id for item in index.resource_types if not item.stat_ranges]
+    if custom_types:
+        print("newly_discovered_classifications:")
+        for key in custom_types:
+            print(f"  - {key}")
     if index.validation.warnings:
         print("warnings:")
         for warning in sorted(index.validation.warnings)[:25]:
@@ -718,8 +767,14 @@ def main(argv: list[str] | None = None) -> int:
     load_parser.add_argument("--core3-root", required=True, type=Path)
     load_parser.add_argument("--dry-run", action="store_true", help="Parse and validate only; do not write to PostgreSQL.")
 
+    for command_parser in (inspect_parser, load_parser):
+        command_parser.add_argument("--spawn-file", type=Path, help="Optional resource_manager_spawns.lua (relative to Core3 repository or absolute).")
+    load_parser.add_argument("--compare-database", action="store_true", help="Read existing mappings and proposed inserts, including during dry-run.")
     args = parser.parse_args(argv)
-    index = build_index(args.core3_root)
+    try:
+        index = build_index(args.core3_root, args.spawn_file) if args.spawn_file is not None else build_index(args.core3_root)
+    except (ValueError, OSError) as exc:
+        parser.exit(1, f"Taxonomy input error: {exc}\n")
 
     if args.command == "inspect":
         write_index_json(index, args.output)
@@ -728,9 +783,16 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "load":
         _print_summary(index)
+        database_conflicts = []
+        if args.compare_database:
+            from app.db.session import make_engine
+            with make_engine().connect() as connection:
+                plan = inspect_database(connection, index)
+                database_conflicts = plan["conflicts"]
+                print(json.dumps(plan, sort_keys=True))
         if args.dry_run:
             print("dry_run: true")
-            return 1 if index.validation.errors else 0
+            return 1 if index.validation.errors or database_conflicts else 0
         from app.db.session import make_engine
 
         with make_engine().begin() as connection:

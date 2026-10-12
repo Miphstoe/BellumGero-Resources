@@ -309,3 +309,259 @@ def _minimal_type(source_type_id: str, direct_parents: tuple[str, ...]) -> Norma
         container_type=None,
         random_name_class=None,
     )
+
+# Spawn classifications deliberately contain no stat range evidence.
+def _spawn_lua(key="test_milk_hoth", label="Hoth Milk", parent="test_milk"):
+    return ('resources = {{type = "' + key + '", classes = {'
+            '{"Organic", "test_organic"}, {"Creature Resources", "test_creature"}, '
+            '{"Milk", "' + parent + '"}, {"' + label + '", "' + key + '"}'
+            '}, attributes = {{"res_quality", 500}}}}')
+
+
+def _custom_index(source=None):
+    from dataclasses import replace
+    from app.indexing.core3.spawn_classifications import extend_classifications
+    index = _index_for_loader()
+    fingerprint = SourceFileFingerprint("resource_manager_spawns.lua", "spawn-sha", 100)
+    types = extend_classifications(index.resource_types, source or _spawn_lua(), fingerprint, index.validation)
+    edges = build_direct_edges(types)
+    return replace(index, resource_types=types, direct_edges=edges,
+                   closure=build_closure({item.source_type_id for item in types}, edges),
+                   source_files=(*index.source_files, fingerprint))
+
+
+def test_spawn_complete_hierarchy_and_baseline_preservation():
+    index = _custom_index()
+    assert not index.validation.errors
+    by_id = {item.source_type_id: item for item in index.resource_types}
+    assert by_id['test_milk_hoth'].stf_class_path == ('resource', 'test_organic', 'test_creature', 'test_milk', 'test_milk_hoth')
+    assert by_id['test_milk_hoth'].class_path[-1] == 'Hoth Milk'
+    assert by_id['test_milk_hoth'].stat_ranges == ()
+    assert by_id['test_milk_hoth'].source_fingerprint == 'spawn-sha'
+    for item in _index_for_loader().resource_types:
+        assert by_id[item.source_type_id] == item
+
+
+def test_spawn_repeated_entries_deduplicate():
+    from app.indexing.core3.spawn_classifications import parse_spawn_classifications
+    source = _spawn_lua()
+    entry = source[len('resources = {'):-1]
+    assert len(parse_spawn_classifications('resources = {' + entry + ',' + entry + '}')) == 1
+
+
+def test_spawn_conflicting_duplicates_rejected():
+    from app.indexing.core3.spawn_classifications import parse_spawn_classifications
+    entry = _spawn_lua()[len('resources = {'):-1]
+    with pytest.raises(ValueError, match='conflicting-definition'):
+        parse_spawn_classifications('resources = {' + entry + ',' + entry.replace('Hoth Milk', 'Other') + '}')
+
+
+@pytest.mark.parametrize('source', [
+    'resources = {', 'resources = {}', 'resources = makeResources()',
+    'resources = {{type="x", type="y", classes={}}}',
+    'resources = {{type="x", classes={{"X", "y"}}}}',
+    'resources = {{type="x", classes={{"X", "x"}}}}; run()',
+])
+def test_spawn_malformed_inputs_fail_closed(source):
+    from app.indexing.core3.spawn_classifications import parse_spawn_classifications
+    with pytest.raises(ValueError):
+        parse_spawn_classifications(source)
+
+
+def test_spawn_unresolved_parent_blocks_load():
+    index = _custom_index(_spawn_lua(parent='missing'))
+    assert 'missing-parent:test_milk_hoth:missing' in index.validation.errors
+    with pytest.raises(ValueError, match='validation errors'):
+        load_index(None, index)
+
+
+def test_spawn_conflicting_baseline_definition():
+    index = _custom_index(_spawn_lua().replace('"Milk",', '"Different Milk",'))
+    assert any(error.startswith('conflicting-classification:') for error in index.validation.errors)
+
+
+def test_spawn_cycle_rejected():
+    index = _custom_index(_spawn_lua(parent='test_milk_hoth'))
+    assert 'cycle:test_milk_hoth' in index.validation.errors
+
+
+def test_optional_spawn_missing_file_is_actionable(tmp_path):
+    sql = tmp_path / 'MMOCoreORB/sql/datatables.sql'
+    sql.parent.mkdir(parents=True)
+    sql.write_text(_fixture_sql())
+    with pytest.raises(FileNotFoundError, match='Optional spawn file not found'):
+        resource_type_cli.build_index(tmp_path, Path('missing.lua'))
+    assert resource_type_cli.build_index(tmp_path).validation.errors == []
+
+
+def test_custom_load_preserves_metadata_ranges_and_mapping(db):
+    baseline = _index_for_loader()
+    load_index(db, baseline)
+    db.execute(text("UPDATE resource_types SET metadata = '{\"keep\": true}', display_name = 'Keep Me' WHERE slug = 'test_milk'"))
+    before = db.execute(text("SELECT * FROM resource_type_stat_ranges ORDER BY id")).all()
+    milk_id = db.execute(text("SELECT id FROM resource_types WHERE slug = 'test_milk'")).scalar_one()
+    # An authoritative alias must continue to target its existing canonical ID.
+    db.execute(text("INSERT INTO source_resource_types (source_instance_id, source_type_key, canonical_type_id, mapping_status, mapping_confidence) SELECT id, 'test_milk_hoth', :type_id, 'mapped', 'authoritative' FROM source_instances WHERE code = 'bellum-gero-live'"), {'type_id': milk_id})
+    index = _custom_index()
+    load_index(db, index)
+    load_index(db, index)
+    assert db.execute(text("SELECT canonical_type_id FROM source_resource_types WHERE source_type_key = 'test_milk_hoth'")).scalar_one() == milk_id
+    assert db.execute(text("SELECT metadata FROM resource_types WHERE id = :id"), {'id': milk_id}).scalar_one() == {'keep': True}
+    assert db.execute(text("SELECT * FROM resource_type_stat_ranges ORDER BY id")).all() == before
+    assert db.execute(text("SELECT count(*) FROM resource_types WHERE slug = 'test_milk_hoth'")).scalar_one() == 0
+
+
+def test_custom_mapping_enables_strict_snapshot_reconciliation(db):
+    from datetime import datetime, timezone
+    from app.importing.core3_live.snapshot import Core3ResourceSnapshot, Core3ResourceSnapshotItem
+    from app.importing.core3_live.reconcile import reconcile_snapshot
+    now = datetime.now(timezone.utc)
+    item = Core3ResourceSnapshotItem('123', 'test', 'test_milk_hoth', (), {'OQ': 500}, None, None, None, {})
+    snapshot = Core3ResourceSnapshot(1, 'core3', 'bellum-gero-live', True, now, (item,), '', 0, {})
+    with pytest.raises(ValueError, match='Unknown Core3 resource types'):
+        reconcile_snapshot(db, snapshot, mutate_source_planets=False)
+    index = _custom_index()
+    load_index(db, index)
+    result = reconcile_snapshot(db, snapshot, mutate_source_planets=False)
+    assert 'test_milk_hoth' in result.canonical_type_ids
+    assert load_index(db, index) == load_index(db, index)
+
+
+def test_database_plan_is_read_only(db):
+    from app.indexing.core3.resource_types import inspect_database
+    before = db.execute(text('SELECT count(*) FROM resource_types')).scalar_one()
+    plan = inspect_database(db, _custom_index())
+    assert 'test_milk_hoth' in plan['proposed_resource_type_inserts']
+    assert db.execute(text('SELECT count(*) FROM resource_types')).scalar_one() == before
+
+
+def test_custom_existing_canonical_record_is_unchanged(db):
+    load_index(db, _index_for_loader())
+    db.execute(text("INSERT INTO resource_types (slug, display_name, kind, metadata, container_type) VALUES ('test_milk_hoth', 'Existing Hoth', 'canonical', '{\"custom\": true}', 'keep.iff')"))
+    before = db.execute(text("SELECT * FROM resource_types WHERE slug = 'test_milk_hoth'")).one()
+    load_index(db, _custom_index())
+    assert db.execute(text("SELECT * FROM resource_types WHERE slug = 'test_milk_hoth'")).one() == before
+    assert db.execute(text("SELECT count(*) FROM resource_type_stat_ranges WHERE resource_type_id = :id"), {'id': before.id}).scalar_one() == 0
+
+
+def test_unknown_existing_mapping_blocks_all_writes(db):
+    db.execute(text("INSERT INTO source_resource_types (source_instance_id, source_type_key, mapping_status, mapping_confidence) SELECT id, 'test_milk_hoth', 'unmapped', 'unknown' FROM source_instances WHERE code = 'bellum-gero-live'"))
+    before = db.execute(text('SELECT count(*) FROM resource_types')).scalar_one()
+    with pytest.raises(ValueError, match='unresolved-existing-mapping'):
+        load_index(db, _custom_index())
+    assert db.execute(text('SELECT count(*) FROM resource_types')).scalar_one() == before
+
+
+def _verified_hoth_index():
+    """Portable classification evidence; production spawn observations are excluded."""
+    import json
+    from dataclasses import replace
+    from app.indexing.core3.spawn_classifications import extend_classifications
+
+    root = Path(__file__).resolve().parents[2]
+    report = json.loads((root / 'docs/core3-hoth-classifications.json').read_text())
+    baseline = {}
+    for item in report['classifications']:
+        for level, identifier in enumerate(item['stf_class_path'][:-1]):
+            ids = tuple(item['stf_class_path'][:level + 1])
+            names = tuple(item['class_path'][:level + 1])
+            node = replace(_minimal_type(identifier, ids[-2:-1]),
+                           display_name=names[-1], class_path=names,
+                           stf_class_path=ids, ancestors=ids[:-1])
+            assert identifier not in baseline or baseline[identifier] == node
+            baseline[identifier] = node
+    original = tuple(sorted(baseline.values(), key=lambda item: item.source_type_id))
+    fingerprint = SourceFileFingerprint('tests/fixtures/core3_hoth_classifications.lua', 'fixture', 0)
+    validation = ValidationResult()
+    source = (root / fingerprint.relative_path).read_text()
+    types = extend_classifications(original, source, fingerprint, validation)
+    edges = build_direct_edges(types)
+    index = replace(_index_for_loader(), resource_types=types, validation=validation,
+                    direct_edges=edges, closure=build_closure(set(baseline) | {item.source_type_id for item in types}, edges))
+    return index, report, original
+
+
+def test_verified_42_hoth_paths_merge_and_preserve_sql_parents():
+    index, report, original = _verified_hoth_index()
+    assert index.validation.errors == []
+    custom = {item.source_type_id: item for item in index.resource_types if item.source_type_id.endswith('_hoth')}
+    assert len(custom) == 42
+    for expected in report['classifications']:
+        actual = custom[expected['source_type_id']]
+        assert actual.display_name == expected['display_name']
+        assert actual.class_path == tuple(expected['class_path'])
+        assert actual.stf_class_path == tuple(expected['stf_class_path'])
+        assert actual.direct_parents == tuple(expected['direct_parents'])
+        assert not actual.stat_ranges
+    assert all(item in index.resource_types for item in original)
+    # Core3 identifiers are authoritative even when their spelling differs.
+    assert custom['meat_reptilian_hoth'].direct_parents == ('meat_reptillian',)
+    assert custom['softwood_conifer_hoth'].direct_parents == ('softwood',)
+
+
+def test_verified_42_hoth_types_reconcile_strictly_and_idempotently(db):
+    from datetime import datetime, timezone
+    from app.importing.core3_live.snapshot import Core3ResourceSnapshot, Core3ResourceSnapshotItem
+    from app.importing.core3_live.reconcile import reconcile_snapshot
+
+    index, report, _ = _verified_hoth_index()
+    resources = tuple(Core3ResourceSnapshotItem(str(10000 + ordinal), 'fixture', item['source_type_id'], (), {'OQ': 500}, None, None, None, {})
+                      for ordinal, item in enumerate(report['classifications']))
+    snapshot = Core3ResourceSnapshot(1, 'core3', 'bellum-gero-live', True, datetime.now(timezone.utc), resources, '', 0, {})
+    with pytest.raises(ValueError, match='Unknown Core3 resource types'):
+        reconcile_snapshot(db, snapshot, mutate_source_planets=False)
+    load_index(db, index)
+    ids_before = db.execute(text('SELECT id, slug FROM resource_types ORDER BY id')).all()
+    mappings_before = db.execute(text('SELECT * FROM source_resource_types ORDER BY id')).all()
+    ranges_before = db.execute(text('SELECT * FROM resource_type_stat_ranges ORDER BY id')).all()
+    result = reconcile_snapshot(db, snapshot, mutate_source_planets=False)
+    assert len(result.canonical_type_ids) == 42
+    load_index(db, index)
+    assert db.execute(text('SELECT id, slug FROM resource_types ORDER BY id')).all() == ids_before
+    assert db.execute(text('SELECT * FROM source_resource_types ORDER BY id')).all() == mappings_before
+    assert db.execute(text('SELECT * FROM resource_type_stat_ranges ORDER BY id')).all() == ranges_before
+
+
+def test_taxonomy_extension_preserves_populated_history_and_gh_data(db, tmp_path):
+    import json
+    from app.importing.core3_live.importer import import_snapshot
+    from tests.importing.test_core3_live_importer import write_snapshot, resource_payload
+    from tests.database.conftest import create_source_resource
+
+    load_index(db, _index_for_loader())
+    path = write_snapshot(tmp_path / 'history.json', resources=[resource_payload(resource_type='test_milk')])
+    import_snapshot(db, path)
+    gh_id = db.execute(text("SELECT id FROM source_instances WHERE code = 'galaxy-153'")).scalar_one()
+    create_source_resource(db, gh_id, 'historical-gh-resource', 'Historical GH Resource')
+    milk_id = db.execute(text("SELECT id FROM resource_types WHERE slug = 'test_milk'")).scalar_one()
+    gh_type_id = db.execute(text("INSERT INTO source_resource_types (source_instance_id, source_type_key, canonical_type_id, mapping_status, mapping_confidence, metadata) VALUES (:source_id, 'gh-history-type', :type_id, 'mapped', 'reviewed', '{\"keep\": true}') RETURNING id"), {'source_id': gh_id, 'type_id': milk_id}).scalar_one()
+    db.execute(text("INSERT INTO resource_type_stat_ranges (source_resource_type_id, stat_code, min_value, max_value, is_applicable) VALUES (:id, 'OQ', 100, 800, true)"), {'id': gh_type_id})
+    taxonomy_tables = {'resource_types', 'source_resource_types', 'resource_type_edges', 'resource_type_closure'}
+    tables = db.execute(text("SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename")).scalars().all()
+
+    def rows(table):
+        # Identifiers originate exclusively from PostgreSQL's own catalog.
+        quoted = db.dialect.identifier_preparer.quote(table)
+        return sorted(json.dumps(value, sort_keys=True) for value in db.execute(text(f'SELECT to_jsonb(t) FROM {quoted} t')).scalars())
+
+    before = {table: rows(table) for table in tables if table not in taxonomy_tables}
+    canonical_before = rows('resource_types')
+    mappings_before = rows('source_resource_types')
+    load_index(db, _custom_index())
+    load_index(db, _custom_index())
+    assert {table: rows(table) for table in before} == before
+    assert set(canonical_before) <= set(rows('resource_types'))
+    assert set(mappings_before) <= set(rows('source_resource_types'))
+
+
+def test_database_cycle_conflict_is_reported_before_writes(db):
+    from app.indexing.core3.resource_types import inspect_database
+    load_index(db, _index_for_loader())
+    milk_id = db.execute(text("SELECT id FROM resource_types WHERE slug = 'test_milk'")).scalar_one()
+    root_id = db.execute(text("SELECT id FROM resource_types WHERE slug = 'resource'")).scalar_one()
+    db.execute(text("INSERT INTO resource_type_edges (parent_type_id, child_type_id, source) VALUES (:parent, :child, 'test-conflict')"), {'parent': milk_id, 'child': root_id})
+    before = db.execute(text('SELECT count(*) FROM resource_types')).scalar_one()
+    assert any(item.startswith('cycle:') for item in inspect_database(db, _custom_index())['conflicts'])
+    with pytest.raises(ValueError, match='cycle:'):
+        load_index(db, _custom_index())
+    assert db.execute(text('SELECT count(*) FROM resource_types')).scalar_one() == before

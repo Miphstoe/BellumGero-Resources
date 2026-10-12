@@ -20,3 +20,6 @@ htmlcov/
 .phase5a-design-evaluation.md
 .phase5a-output/
 .phase6b-output/
+
+# Local authoritative Core3 spawn input (contains live resource data).
+/resource_manager_spawns.lua
