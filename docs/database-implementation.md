@@ -147,3 +147,58 @@ There is no global `1..1000` stat value constraint. Source anomalies must be pre
 - applicable ranges may be unknown, or have `min_value <= max_value`
 
 Importer logic will later decide how to interpret GH `0/0` ranges.
+
+## Permanent Hoth registration (20261012_0004)
+
+`database/migrations/versions/20261012_0004_hoth_planet.py` follows
+`20261009_0003` and is the new Alembic head. It adds the eleventh canonical planet:
+`slug=hoth`, `display_name=Hoth`, `core3_zone_name=hoth`, `active=true`.
+
+Upgrade uses PostgreSQL `INSERT ... ON CONFLICT (slug) DO UPDATE`. A previously
+inserted Hoth retains its primary key and all references; only its display name,
+Core3 zone name and active flag are corrected. A fully correct row is left alone.
+Other planets, source mappings, resource/stat/history records, GH data, taxonomy
+and creature harvesting records are untouched. No initial migration, model,
+importer, API, layout or filtering implementation was changed.
+
+Downgrade to `20261009_0003` intentionally performs no data writes. Hoth and its
+canonical values remain even when unreferenced, since the migration cannot know
+whether the row existed beforehand. This also preserves resource observations,
+source mappings, planet-specific classifications and creature references without
+having to maintain an incomplete list of foreign keys. A subsequent upgrade is
+safe and retains the same ID. Downgrading further through earlier destructive
+schema migrations is outside this data-preservation guarantee.
+
+For an explicitly selected staging or production database, use the existing
+`BELLUM_DATABASE_URL` configuration and normal migration process:
+
+```powershell
+python -m alembic heads
+python -m alembic upgrade head
+python -m alembic current
+```
+
+Expected head/current revision after upgrade: `20261012_0004`. Check the canonical
+registration without changing data:
+
+```sql
+SELECT id, slug, display_name, core3_zone_name, active
+FROM planets WHERE slug = 'hoth';
+```
+
+PostgreSQL-backed migration tests use isolated schemas to exercise the original
+ten-planet database, existing manual Hoth records and mappings, repeated insertion,
+real Hoth snapshot import, populated Core3/GH/creature data preservation, and safe
+downgrade/re-upgrade. Shared pgcrypto functions remain visible while each schema
+has its own Alembic revision ledger. The original reference-data/API count tests
+now expect eleven planets; unknown-planet tests use an unregistered fixture zone.
+
+Validation runs only against disposable PostgreSQL 16 on loopback port 55435. No
+production migration or service deployment is performed by this change. On an
+existing database, applying the migration briefly locks the matching Hoth row if
+canonical corrections are required; normal Alembic PostgreSQL transactional DDL
+keeps the operation atomic. There are no unresolved implementation issues.
+
+Final validation: 584 tests passed, zero failed or skipped, including all PostgreSQL
+integration tests. The only warning is the existing Starlette/httpx deprecation.
+Alembic heads reports 20261012_0004 as the sole head.

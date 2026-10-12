@@ -28,7 +28,7 @@ def test_alembic_upgrade_downgrade_reupgrade(alembic_config, engine):
 def test_required_reference_data_exists(db):
     assert db.execute(text("SELECT count(*) FROM stat_definitions")).scalar_one() == 11
     assert db.execute(text("SELECT core3_attribute_name FROM stat_definitions WHERE code = 'ER'")).scalar_one() is None
-    assert db.execute(text("SELECT count(*) FROM planets")).scalar_one() == 10
+    assert db.execute(text("SELECT count(*) FROM planets")).scalar_one() == 11
     assert db.execute(text("SELECT count(*) FROM source_systems WHERE code IN ('galaxy_harvester', 'core3')")).scalar_one() == 2
     assert db.execute(text("SELECT external_id FROM source_instances WHERE code = 'galaxy-153'")).scalar_one() == "153"
 

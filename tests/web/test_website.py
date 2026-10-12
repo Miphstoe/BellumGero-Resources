@@ -43,7 +43,7 @@ def test_empty_database_pages_and_api_contract(client):
     data = client.get("/api/resources").json()
     assert data["items"] == [] and data["total"] == 0 and data["page_size"] == 25
     assert data["snapshot_status"]["captured_at"] is None and data["snapshot_status"]["stale"]
-    assert len(client.get("/api/planets").json()["items"]) == 10
+    assert len(client.get("/api/planets").json()["items"]) == 11
     assert "items" in client.get("/api/resource-types").json()
     assert client.get("/api/resources/99999999").status_code == 404
     assert client.get("/api/resources/99999999999999999999999999").status_code == 422

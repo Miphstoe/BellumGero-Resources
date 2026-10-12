@@ -179,8 +179,8 @@ def test_failed_activation_has_no_partial_writes(db, source_tree):
 
 def test_unknown_planet_not_evidence(db, source_tree):
     _, put = source_tree
-    put('conf/config.lua', 'Core3={ZonesEnabled={"hoth"}}')
-    put('scripts/managers/planet/hoth_regions.lua', 'hoth_regions={{"world",0,0,{RECTANGLE,0,0},SPAWNAREA+WORLDSPAWNAREA,{"world"},20}}')
+    put('conf/config.lua', 'Core3={ZonesEnabled={"unregistered_zone"}}')
+    put('scripts/managers/planet/unregistered_zone_regions.lua', 'unregistered_zone_regions={{"world",0,0,{RECTANGLE,0,0},SPAWNAREA+WORLDSPAWNAREA,{"world"},20}}')
     result = import_catalog(db, build(source_tree), activate=True)
     assert result['mapped_spawn_evidence'] == 0
     assert db.execute(text('SELECT count(*) FROM creature_import_diagnostics WHERE code=\'unknown_planet\'')).scalar_one() == 1
@@ -247,7 +247,7 @@ def test_missing_spawn_zero_amount_and_milk(db, loaded):
     assert match_resources(db, repository='fixture', creature='wild_foreign_bantha_rori', planet='tatooine', category='meat')['status'] == 'no_verified_planet_spawn'
     assert match_resources(db, repository='fixture', creature='zero', planet='rori', category='meat')['status'] == 'not_harvestable'
     assert match_resources(db, repository='fixture', creature='wild_foreign_bantha_rori', planet='rori', category='milk')['status'] == 'milk_requires_separate_runtime_validation'
-    assert match_resources(db, repository='fixture', creature='wild_foreign_bantha_rori', planet='hoth', category='meat')['status'] == 'unverified'
+    assert match_resources(db, repository='fixture', creature='wild_foreign_bantha_rori', planet='hoth', category='meat')['status'] == 'no_verified_planet_spawn'
 
 
 def test_literal_static_and_conditional_spawn(source_tree):
